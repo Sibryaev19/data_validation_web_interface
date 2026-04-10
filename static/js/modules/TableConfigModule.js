@@ -31,10 +31,11 @@ const COLUMN_TYPES = {
 };
 
 export class TableConfigModule {
-  constructor(tableName, columns, onValidate) {
+  constructor(tableName, columns, onValidate, onValidateStart) {
     this.tableName = tableName;
     this.columns = columns;
     this.onValidate = onValidate;
+    this.onValidateStart = onValidateStart;
     this.conditions = {}; // { columnName: [condition1, condition2, ...] }
 
     this.module = document.getElementById('configModule');
@@ -234,6 +235,11 @@ export class TableConfigModule {
 
     this.setLoading(true);
     this.hideError();
+
+    // Вызываем колбэк для показа скелетонов
+    if (this.onValidateStart) {
+      this.onValidateStart();
+    }
 
     const payload = {
       tableName: this.tableName,

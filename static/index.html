@@ -32,6 +32,10 @@
         />
         <button id="searchBtn" class="btn btn-primary">Найти</button>
         <div id="searchSpinner" class="spinner" hidden></div>
+<!--        <span id="currentTableLabel" class="current-table-label" hidden>-->
+<!--          Таблица: <strong id="currentTableName"></strong>-->
+<!--          <button id="changeTableBtn" class="btn-link" type="button">Изменить</button>-->
+<!--        </span>-->
         <div id="searchError" class="error-message" role="alert" hidden></div>
       </div>
     </section>
@@ -78,16 +82,14 @@
     <section id="resultsModule" class="module" aria-labelledby="resultsTitle" hidden>
       <h2 id="resultsTitle" class="module-title">📊 Статистика валидации</h2>
 
-      <div class="stats-grid">
-        <div class="stats-card">
-          <h3>Метаданные таблицы</h3>
-          <div id="metadataTableContainer"></div>
-        </div>
+      <div class="stats-card">
+        <h3>Метаданные таблицы</h3>
+        <div id="metadataTableContainer"></div>
+      </div>
 
-        <div class="stats-card">
-          <h3>Статистика по колонкам</h3>
-          <div id="columnStatsTableContainer"></div>
-        </div>
+      <div class="stats-card">
+        <h3>Статистика по колонкам</h3>
+        <div id="columnStatsTableContainer"></div>
       </div>
     </section>
 

@@ -135,6 +135,70 @@ export class ValidationResultsModule {
     this.module.classList.remove('active');
   }
 
+  showSkeletons() {
+    this.metadataContainer.innerHTML = this.getMetadataSkeletonHTML();
+    this.columnStatsContainer.innerHTML = this.getColumnStatsSkeletonHTML();
+    this.show();
+  }
+
+  /**
+   * Генерирует скелетон для таблицы метаданных
+   */
+  getMetadataSkeletonHTML() {
+    return `
+      <table class="stats-table skeleton-table">
+        <thead>
+          <tr>
+            <th>Параметр</th>
+            <th>Описание</th>
+            <th>Значение</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${Array(5).fill(0).map(() => `
+            <tr class="skeleton-row">
+              <td class="skeleton-cell"><div class="skeleton-line" style="width: 120px"></div></td>
+              <td class="skeleton-cell"><div class="skeleton-line" style="width: 180px"></div></td>
+              <td class="skeleton-cell"><div class="skeleton-line" style="width: 80px"></div></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  /**
+   * Генерирует скелетон для таблицы статистики по колонкам
+   */
+  getColumnStatsSkeletonHTML() {
+    const columnCount = 8; // Примерное количество метрик
+    return `
+      <table class="stats-table skeleton-table">
+        <thead>
+          <tr>
+            <th>Колонка</th>
+            ${Array(columnCount).fill(0).map((_, i) => `
+              <th><div class="skeleton-line" style="width: 60px"></div></th>
+            `).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${Array(6).fill(0).map(() => `
+            <tr class="skeleton-row">
+              <td class="skeleton-cell"><div class="skeleton-line" style="width: 100px"></div></td>
+              ${Array(columnCount).fill(0).map(() => `
+                <td class="skeleton-cell"><div class="skeleton-line" style="width: 50px"></div></td>
+              `).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  /**
+   * Очистить скелетоны и скрыть модуль
+   */
   clear() {
     this.metadataContainer.innerHTML = '';
     this.columnStatsContainer.innerHTML = '';

@@ -23,8 +23,9 @@ class App {
 
     // Initialize search module
     this.modules.search = new SearchModule(
-      (data, tableName) => this.onTableFound(data, tableName),
-      (error) => this.onSearchError(error)
+        (data, tableName) => this.onTableFound(data, tableName),
+        (error) => this.onSearchError(error),
+        () => this.handleSearchReset()  // новый колбэк
     );
 
     // Reset button handler
@@ -34,18 +35,27 @@ class App {
     this.modules.search.focus();
   }
 
+  handleSearchReset() {
+    if (this.modules.config) {
+      this.modules.config.hide();
+      delete this.modules.config;
+    }
+    this.modules.results?.clear();
+    this.modules.tips?.clear();
+    this.resetBtn.hidden = true;
+  }
+
   onTableFound(tableInfo, tableName) {
-    // Hide search module visually (keep for reference)
+    // Делаем модуль поиска неактивным (заблокированным)
     document.getElementById('searchModule').classList.remove('active');
 
-    // Show reset button
     this.resetBtn.hidden = false;
 
-    // Initialize and show config module
     this.modules.config = new TableConfigModule(
-      tableName,
-      tableInfo.columns,
-      (validationData) => this.onValidationComplete(validationData)
+        tableName,
+        tableInfo.columns,
+        (validationData) => this.onValidationComplete(validationData),
+        () => this.modules.results.showSkeletons()
     );
     this.modules.config.show();
   }
@@ -64,7 +74,7 @@ class App {
     this.modules.tips.render(data.gigachat_tips);
 
     // Scroll to results
-    document.getElementById('resultsModule')?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('resultsModule')?.scrollIntoView({behavior: 'smooth'});
   }
 
   reset() {
@@ -76,7 +86,7 @@ class App {
     this.modules.search?.reset();
     const searchModule = document.getElementById('searchModule');
     searchModule.classList.add('active');   // возвращаем активный класс
-    searchModule.removeAttribute('hidden'); // если был скрыт (не требуется, но для уверенности)
+    searchModule.removeAttribute('hidden'); // на всякий случай
 
     // Скрываем конфигурацию
     if (this.modules.config) {
