@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Валидация данных</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="container header-content">
+      <h1 class="app-title">🔍 Валидатор данных</h1>
+      <button id="resetBtn" class="btn btn-secondary" hidden>Новая проверка</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Модуль 1: Поиск таблицы -->
+    <section id="searchModule" class="module active" aria-labelledby="searchTitle">
+      <h2 id="searchTitle" class="module-title">Поиск таблицы</h2>
+      <div class="search-form">
+        <label for="tableNameInput" class="visually-hidden">Название таблицы</label>
+        <input
+          type="text"
+          id="tableNameInput"
+          class="input-field"
+          placeholder="Введите название таблицы"
+          autocomplete="off"
+        />
+        <button id="searchBtn" class="btn btn-primary">Найти</button>
+        <div id="searchSpinner" class="spinner" hidden></div>
+        <div id="searchError" class="error-message" role="alert" hidden></div>
+      </div>
+    </section>
+
+    <!-- Модуль 2: Настройка проверок -->
+    <section id="configModule" class="module" aria-labelledby="configTitle" hidden>
+      <h2 id="configTitle" class="module-title">
+        <button id="toggleConfigBtn" class="toggle-btn" aria-expanded="true">
+          ⚙️ Настройки колонок
+          <span class="toggle-icon">▼</span>
+        </button>
+      </h2>
+
+      <div id="configContent" class="config-content">
+        <div class="table-wrapper">
+          <table id="columnsTable" class="data-table" aria-describedby="columnsTableDesc">
+            <caption id="columnsTableDesc" class="visually-hidden">Список колонок таблицы для настройки валидации</caption>
+            <thead>
+              <tr>
+                <th scope="col">Название атрибута</th>
+                <th scope="col">Тип данных</th>
+                <th scope="col">Описание</th>
+                <th scope="col">Доп. условие</th>
+                <th scope="col">Применённые условия</th>
+              </tr>
+            </thead>
+            <tbody id="columnsTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="validation-controls">
+          <label for="rowLimitInput">
+            Проверяемых строк:
+            <input type="number" id="rowLimitInput" class="input-field input-small" value="10000000" min="1" max="100000000" />
+          </label>
+          <button id="validateBtn" class="btn btn-primary">Начать валидацию</button>
+          <div id="validateSpinner" class="spinner" hidden></div>
+          <div id="validateError" class="error-message" role="alert" hidden></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Модуль 3: Статистика -->
+    <section id="resultsModule" class="module" aria-labelledby="resultsTitle" hidden>
+      <h2 id="resultsTitle" class="module-title">📊 Статистика валидации</h2>
+
+      <div class="stats-grid">
+        <div class="stats-card">
+          <h3>Метаданные таблицы</h3>
+          <div id="metadataTableContainer"></div>
+        </div>
+
+        <div class="stats-card">
+          <h3>Статистика по колонкам</h3>
+          <div id="columnStatsTableContainer"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Модуль 4: Советы GigaChat -->
+    <section id="tipsModule" class="module" aria-labelledby="tipsTitle" hidden>
+      <h2 id="tipsTitle" class="module-title">💡 Рекомендации GigaChat</h2>
+      <div id="gigachatContent" class="markdown-content"></div>
+    </section>
+  </main>
+
+  <!-- Модальное окно для условий -->
+  <div id="conditionModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+    <div class="modal-overlay" data-close-modal></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle" class="modal-title">Настройка условия</h3>
+        <button class="modal-close" data-close-modal aria-label="Закрыть">&times;</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+      <div class="modal-footer">
+        <button id="modalCancelBtn" class="btn btn-secondary" data-close-modal>Отмена</button>
+        <button id="modalSaveBtn" class="btn btn-primary">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Подключение модулей как ES-модулей -->
+  <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>
