@@ -156,6 +156,16 @@ body {
   min-height: 40px;
 }
 
+select.condition-select {
+  width: 160px;
+  min-width: 140px;
+  max-width: 180px;
+  /* Обрезаем длинный текст в закрытом состоянии */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .input-field:focus {
   outline: none;
   border-color: var(--color-primary);
@@ -257,9 +267,9 @@ select.input-field {
 
 .table-wrapper {
   overflow-x: auto;
+  overflow-y: visible; /* Было: auto */
+  max-height: none;    /* Было: 500px */
   margin-bottom: 20px;
-  max-height: 500px;
-  overflow-y: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
 }
@@ -273,7 +283,8 @@ select.input-field {
 .data-table th,
 .data-table td {
   padding: 12px 16px;
-  text-align: left;
+  text-align: left;          /* ← Явно переопределяем дефолт браузера для th */
+  vertical-align: middle;    /* ← Добавлено: выравнивает текст по центру ячейки по вертикали */
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -345,8 +356,8 @@ select.input-field {
   border-radius: 6px;
   padding: 10px 12px;
   position: absolute;
-  z-index: 1000;
-  bottom: 125%;
+  z-index: 1001; /* Поднимаем выше sticky-заголовка (z-index: 10) */
+  bottom: calc(100% + 8px); /* Более точный отступ, чем 125% */
   left: 50%;
   transform: translateX(-50%);
   opacity: 0;
@@ -355,6 +366,7 @@ select.input-field {
   font-weight: 400;
   white-space: normal;
   box-shadow: var(--shadow-hover);
+  pointer-events: none; /* Исключаем случайное перекрытие кликов */
 }
 
 .tooltip .tooltip-text::after {
@@ -436,6 +448,8 @@ select.input-field {
 .stats-table th,
 .stats-table td {
   padding: 8px 12px;
+  text-align: left;          /* ← Добавлено явно */
+  vertical-align: middle;    /* ← Добавлено для единообразия */
   border-bottom: 1px solid var(--color-border);
 }
 

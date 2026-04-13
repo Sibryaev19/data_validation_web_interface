@@ -1,6 +1,8 @@
 import asyncio
 import random
 
+from temp_modules.DB_imitation import d
+
 # --- Мок-данные для имитации БД ---
 
 MOCK_COLUMNS = [
@@ -46,6 +48,9 @@ MOCK_COLUMNS = [
     }
 ]
 
+def get_d():
+    return d
+
 
 async def get_table_info(table_name: str):
     """
@@ -76,33 +81,68 @@ async def validate(payload: dict):
 
     # Генерируем фейковую статистику на основе колонок из мока
     sample_statistics = {}
-    for col in MOCK_COLUMNS:
-        col_name = col["name"]
-        col_type = col["type"]
+    for col_name, col_stats in d["columns"].items():
+        col_type = col_stats["dtype"]
 
         stats = {
-            "count": random.randint(1000, 10000),
-            "null_percent": round(random.uniform(0, 5), 2)
+            "type": col_type,
+            "null_count": col_stats["null_count"],
+            "unique_count": col_stats["unique_count"]
         }
 
-        if col_type in ["integer", "decimal", "bigint"]:
-            stats["min"] = random.randint(-100, 0)
-            stats["max"] = random.randint(100, 10000)
-            stats["avg"] = round(random.uniform(0, 1000), 2)
-        elif col_type in ["varchar", "text"]:
-            stats["unique"] = random.randint(100, 5000)
-            stats["min_length"] = 5
-            stats["max_length"] = 150
+        if col_type in ["String"]:
+            stats["min"] = col_stats["min_length"]
+            stats["max"] = col_stats["max_length"]
+            stats["median"] = col_stats["median_len"]
+            stats["zero"] = col_stats["str_empty_words"]
+            stats["type_special"] = {
+                "problematic_symbols": col_stats["problematic_symbols"],
+                "leading_gaps": col_stats["leading_gaps"],
+                "mixed_language": col_stats["mixed_language"]
+            }
+        elif col_stats.get("min", None) is not None:
+            stats["min"] = col_stats["min"]
+            stats["max"] = col_stats["max"]
+            stats["median"] = -1
+            stats["zero"] = col_stats["zero_count"]
+            stats["type_special"] = {
+                "quantile_lower_bound": col_stats["quantile"]["lower_bound"],
+                "quantile_lower_count": col_stats["quantile"]["lower_count"],
+                "quantile_upper_bound": col_stats["quantile"]["upper_bound"],
+                "quantile_upper_count": col_stats["quantile"]["upper_count"],
+            }
+            if col_stats.get("inf_count", None) is not None:
+                stats["type_special"]["inf_count"] = col_stats["inf_count"]
+                stats["type_special"]["nan_count"] = col_stats["nan_count"]
+        elif col_stats.get("default_1970_count", None) is not None:
+            stats["min"] = col_stats["min_date"]
+            stats["max"] = col_stats["max_date"]
+            stats["type_special"] = {
+                "default_1970_count": col_stats["default_1970_count"],
+                "less_min_date": col_stats["less_min_date"],
+                "more_cur_date": col_stats["more_cur_date"]
+            }
 
+        if random.random() > 0.4:
+            arr = []
+            for i in range(1 + int(random.random()*10 / 2.5)):
+                arr.append([f"p_{i}", round(random.random()*10, 3)])
+            stats["custom"] = arr
         sample_statistics[col_name] = stats
 
     # Формируем мета-статистику таблицы
     metadata_stats = [
         ["table_name", "Имя таблицы", table_name],
-        ["engine", "Движок хранения", "InnoDB"],
-        ["row_count_estimate", "Оценочное кол-во строк", f"{random.randint(10000, 1000000):,}"],
-        ["data_size", "Размер данных", f"{random.uniform(10, 500):.2f} MB"],
-        ["last_analyzed", "Последний анализ", "2026-04-09 14:30:00"]
+        ["num_columns", "Число атрибутов", d["num_columns"]],
+        ["file_count", "Число файлов в таблице", d['file_count']],
+        ["dataset_size", "Размер таблицы в ГБ", f"{d['dataset_size'][0]:.3f} {d['dataset_size'][1]}"],
+        ["row_count_estimate", "Оценочное кол-во строк", d['dataset_row_count_estimation']],
+        ["small_files", "Флаг маленьких файлов", d['small_files']],
+        ["large_data_not_partitioned", "Флаг необходимости партицирования данных", d['large_data_not_partitioned']],
+        ["column_problem_flag", "Флаг проблемы с числом колонок", d['column_problem_flag']],
+        ["cols_exist_null_partition", "Атрибуты-партиции с null значением", d['cols_exist_null_partition']],
+        ["empty_partitions", "Пустые партиции", d['empty_partitions']],
+        ["meaningless_partitiions", "Партиции, не несущие полезной информации", d['meaningless_partitiions']]
     ]
 
     # Генерируем Markdown советы
