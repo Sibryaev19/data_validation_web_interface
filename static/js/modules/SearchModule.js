@@ -6,10 +6,9 @@
 import { apiPost } from '../utils/api.js';
 
 export class SearchModule {
-  constructor(onSuccess, onError, onReset) {
+  constructor(onSuccess, onError) {
     this.onSuccess = onSuccess;
     this.onError = onError;
-    this.onReset = onReset;
 
     this.input = document.getElementById('tableNameInput');
     this.searchBtn = document.getElementById('searchBtn');
@@ -38,7 +37,11 @@ export class SearchModule {
       return;
     }
 
-    if (this.onReset) this.onReset();
+    // Reset other modules before new search
+    if (window.app) {
+      window.app.resetForNewSearch();
+    }
+
     this.setLoading(true);
     this.hideError();
 

@@ -1,109 +1,86 @@
-/**
- * Main Application Controller
- * Orchestrates module interaction and state management
- */
-
 import { SearchModule } from './modules/SearchModule.js';
 import { TableConfigModule } from './modules/TableConfigModule.js';
 import { ValidationResultsModule } from './modules/ValidationResultsModule.js';
 import { GigaChatTipsModule } from './modules/GigaChatTipsModule.js';
-
 import { closeConditionModal } from './utils/modal.js';
+import { apiPost } from './utils/api.js';
 
 class App {
   constructor() {
     this.resetBtn = document.getElementById('resetBtn');
-    this.modules = {};
+
+    // Create all modules once
+    this.modules = {
+      results: new ValidationResultsModule(),
+      tips: new GigaChatTipsModule(),
+      config: new TableConfigModule(() => this.modules.results.showSkeletons()),
+    };
+    this.modules.config.setValidateCallback(() => this.onValidate());
+
+    this.modules.search = new SearchModule(
+      (data, tableName) => this.handleTableFound(data, tableName),
+      (error) => console.warn('Search error:', error)
+    );
 
     this.init();
   }
 
   init() {
-    // Initialize result modules (hidden initially)
-    this.modules.results = new ValidationResultsModule();
-    this.modules.tips = new GigaChatTipsModule();
-
-    // Initialize search module
-    this.modules.search = new SearchModule(
-        (data, tableName) => this.onTableFound(data, tableName),
-        (error) => this.onSearchError(error),
-        () => this.handleSearchReset()  // новый колбэк
-    );
-
-    // Reset button handler
     this.resetBtn.addEventListener('click', () => this.reset());
-
-    // Focus search input on load
+    this.modules.config.hide();
     this.modules.search.focus();
   }
 
-  handleSearchReset() {
-    if (this.modules.config) {
-      this.modules.config.hide();
-      delete this.modules.config;
-    }
-    this.modules.results?.clear();
-    this.modules.tips?.clear();
-    this.resetBtn.hidden = true;
+  resetForNewSearch() {
+    closeConditionModal();
+    this.modules.results.clear();
+    this.modules.tips.clear();
+    this.modules.config.hide();
+    this.modules.config.resetState();
   }
 
-  onTableFound(tableInfo, tableName) {
-    if (this.modules.config) {
-      this.modules.config.hide();
-      delete this.modules.config;
-    }
-    // Делаем модуль поиска неактивным (заблокированным)
+  handleTableFound(tableInfo, tableName) {
     document.getElementById('searchModule').classList.remove('active');
-
     this.resetBtn.hidden = false;
 
-    this.modules.config = new TableConfigModule(
-        tableName,
-        tableInfo.columns,
-        (validationData) => this.onValidationComplete(validationData),
-        () => this.modules.results.showSkeletons()
-    );
+    this.modules.config.setTable(tableName, tableInfo.columns);
     this.modules.config.show();
   }
 
-  onSearchError(error) {
-    // Keep search module active, user can retry
-    console.warn('Search failed:', error);
-  }
+  async onValidate() {
+    const payload = {
+      tableName: this.modules.config.tableName,
+      rowLimit: this.modules.config.getRowLimit(),
+      columnConditions: this.modules.config.getConditions(),
+    };
 
-  onValidationComplete(data) {
-    // Collapse config section
-    this.modules.config?.collapse();
-
-    // Render results
-    this.modules.results.render(data);
-    this.modules.tips.render(data.gigachat_tips);
-
-    // Scroll to results
-    document.getElementById('resultsModule')?.scrollIntoView({behavior: 'smooth'});
+    try {
+      const data = await apiPost('/api/validate', payload);
+      this.modules.config.collapse();
+      this.modules.results.render(data);
+      this.modules.tips.render(data.gigachat_tips);
+      document.getElementById('resultsModule')?.scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+      console.error('Validation failed:', error);
+      this.modules.config.showError(error.message || 'Ошибка валидации');
+    } finally {
+      this.modules.config.setLoading(false);
+    }
   }
 
   reset() {
     closeConditionModal();
+    this.modules.results.clear();
+    this.modules.tips.clear();
+    this.modules.config.reset();
+    this.modules.search.reset();
 
-    this.modules.results?.clear();
-    this.modules.tips?.clear();
-
-    if (this.modules.config) {
-      this.modules.config.reset();
-      // После сброса скрываем модуль (возвращаемся к экрану поиска)
-      this.modules.config.hide();
-      delete this.modules.config;
-    }
-
-    this.modules.search?.reset();
     document.getElementById('searchModule').classList.add('active');
     this.resetBtn.hidden = true;
-    this.modules.search?.focus();
+    this.modules.search.focus();
   }
 }
 
-// Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   window.app = new App();
 });

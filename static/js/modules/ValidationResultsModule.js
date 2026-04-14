@@ -2,6 +2,21 @@
  * Module 3: Statistics Visualization
  * Renders metadata and column statistics tables
  */
+
+// Словарь описаний для специальных проверок (type_special)
+const SPECIAL_DESCRIPTIONS = {
+  problematic_symbols: 'Количество записей с проблемными символами (управляющие, непечатные)',
+  leading_gaps: 'Количество записей с пробелами в начале строки',
+  mixed_language: 'Количество записей, где смешаны кириллица и латиница',
+  quantile_lower_bound: 'Нижняя граница квантиля',
+  quantile_lower_count: 'Количество значений ниже нижней границы квантиля',
+  quantile_upper_bound: 'Верхняя граница квантиля',
+  quantile_upper_count: 'Количество значений выше верхней границы квантиля',
+  default_1970_count: 'Количество дат, равных 1970-01-01 (значение по умолчанию)',
+  less_min_date: 'Количество дат ранее минимально допустимой даты',
+  more_cur_date: 'Количество дат в будущем (позже текущей)'
+};
+
 export class ValidationResultsModule {
   constructor() {
     this.module = document.getElementById('resultsModule');
@@ -53,17 +68,17 @@ export class ValidationResultsModule {
       this.columnStatsContainer.innerHTML = '<p>Нет данных</p>';
       return;
     }
+
     const columns = Object.keys(stats);
     const allMetrics = [...new Set(
       columns.flatMap(col => Object.keys(stats[col]))
     )];
 
-    // Фиксированный порядок метрик + новые спец. поля
-    const metricOrder = ['type', 'count', 'null_percent', 'min', 'max', 'avg', 'std', 'unique', 'type_special', 'custom'];
-    const orderedMetrics = [
-      ...metricOrder.filter(m => allMetrics.includes(m)),
-      ...allMetrics.filter(m => !metricOrder.includes(m))
+    // Жесткий порядок колонок – только те, что есть в данных
+    const DESIRED_ORDER = [
+      'type', 'null_count', 'unique_count', 'min', 'max', 'median', 'zero', 'type_special', 'custom'
     ];
+    const orderedMetrics = DESIRED_ORDER.filter(m => allMetrics.includes(m));
 
     const table = document.createElement('table');
     table.className = 'stats-table';
@@ -94,16 +109,15 @@ export class ValidationResultsModule {
 
   formatMetricName(name) {
     const names = {
-      count: 'Записей',
-      null_percent: '% NULL',
-      min: 'Мин',
-      max: 'Макс',
-      avg: 'Среднее',
-      std: 'Стд. откл.',
-      unique: 'Уникальных',
       type: 'Тип данных',
+      null_count: 'Кол-во NULL',
+      unique_count: 'Кол-во уникальных',
+      min: 'Минимальное значение / длина (для String)',
+      max: 'Максимальное значение / длина (для String)',
+      median: 'Среднее значение / длина (для String)',
+      zero: "Кол-во 0 или '' (для String)",
       type_special: 'Спец. проверки',
-      custom: 'Кастомные проверки'
+      custom: 'Пользовательские проверки'
     };
     return names[name] || name;
   }
@@ -121,14 +135,17 @@ export class ValidationResultsModule {
     // Булевы
     if (typeof value === 'boolean') return value ? 'Да' : 'Нет';
 
-    // custom: массив пар [[name, val], ...]
+    // custom: массив пар [[name, val, description?], ...]
     if (Array.isArray(value)) {
-      return value.map(([name, val]) => {
+      return value.map(item => {
+        // Может быть [name, val] или [name, val, desc]
+        const [name, val, desc] = item;
         const safeName = this.escapeHtml(String(name));
         const safeVal = typeof val === 'number'
           ? val.toLocaleString('ru-RU', { maximumFractionDigits: 4 })
           : this.escapeHtml(String(val ?? '—'));
-        return `<div class="custom-check"><span class="custom-name">${safeName}:</span> <span class="custom-val">${safeVal}</span></div>`;
+        const titleAttr = desc ? ` title="${this.escapeHtml(desc)}"` : '';
+        return `<div class="custom-check"><span class="custom-name"${titleAttr}>${safeName}:</span> <span class="custom-val">${safeVal}</span></div>`;
       }).join('');
     }
 
@@ -139,7 +156,9 @@ export class ValidationResultsModule {
         const safeVal = typeof v === 'number'
           ? v.toLocaleString('ru-RU', { maximumFractionDigits: 4 })
           : this.escapeHtml(String(v ?? '—'));
-        return `<div class="special-check"><span class="special-key">${safeKey}:</span> <span class="special-val">${safeVal}</span></div>`;
+        const description = SPECIAL_DESCRIPTIONS[k] || '';
+        const titleAttr = description ? ` title="${this.escapeHtml(description)}"` : '';
+        return `<div class="special-check"><span class="special-key"${titleAttr}>${safeKey}:</span> <span class="special-val">${safeVal}</span></div>`;
       }).join('');
     }
 
@@ -169,7 +188,6 @@ export class ValidationResultsModule {
     this.show();
   }
 
-  // ✅ Исправлен синтаксис: был Markdown, теперь валидный HTML
   getMetadataSkeletonHTML() {
     return `
       <table class="stats-table skeleton-table">

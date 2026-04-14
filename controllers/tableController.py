@@ -127,7 +127,7 @@ async def validate(payload: dict):
         if random.random() > 0.4:
             arr = []
             for i in range(1 + int(random.random()*10 / 2.5)):
-                arr.append([f"p_{i}", round(random.random()*10, 3)])
+                arr.append([f"p_{i}", round(random.random()*10, 3), "Некое пояснение к проверке!!!!"])
             stats["custom"] = arr
         sample_statistics[col_name] = stats
 

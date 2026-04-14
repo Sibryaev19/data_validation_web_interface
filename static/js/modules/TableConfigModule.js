@@ -1,6 +1,6 @@
 /**
- * Module 2: Column Configuration
- * Handles column table display, condition management, and validation trigger
+ * Module 2: Column Configuration (упрощённая версия)
+ * Поддерживает переиспользование экземпляра при смене таблицы.
  */
 
 import { apiPost } from '../utils/api.js';
@@ -31,13 +31,17 @@ const COLUMN_TYPES = {
 };
 
 export class TableConfigModule {
-  constructor(tableName, columns, onValidate, onValidateStart) {
-    this.tableName = tableName;
-    this.columns = columns;
-    this.onValidate = onValidate;
+  constructor(onValidateStart) {
+    // Колбэк для показа скелетонов перед стартом валидации
     this.onValidateStart = onValidateStart;
-    this.conditions = {}; // { columnName: [condition1, condition2, ...] }
+    // Колбэк для запуска валидации (будет установлен из App)
+    this.validateCallback = null;
 
+    this.tableName = '';
+    this.columns = [];
+    this.conditions = {};
+
+    // DOM элементы
     this.module = document.getElementById('configModule');
     this.toggleBtn = document.getElementById('toggleConfigBtn');
     this.configContent = document.getElementById('configContent');
@@ -51,14 +55,101 @@ export class TableConfigModule {
   }
 
   init() {
-    // Toggle config section
+    // Переключение сворачивания секции
     this.toggleBtn.addEventListener('click', () => this.toggleConfig());
 
-    // Validate button
+    // Кнопка валидации
     this.validateBtn.addEventListener('click', () => this.handleValidate());
+  }
 
-    // Render table
+  /**
+   * Установить внешний колбэк для выполнения валидации
+   */
+  setValidateCallback(cb) {
+    this.validateCallback = cb;
+  }
+
+  /**
+   * Загрузить новую таблицу (переиспользование экземпляра)
+   */
+  setTable(tableName, columns) {
+    this.tableName = tableName;
+    this.columns = columns;
+    this.conditions = {};
+    this.rowLimitInput.value = '10000000';
+    this.hideError();
     this.renderTable();
+    // Разворачиваем секцию настроек (можно сделать настройкой)
+    this.toggleBtn.setAttribute('aria-expanded', 'true');
+    this.configContent.hidden = false;
+  }
+
+  /**
+   * Получить текущий лимит строк
+   */
+  getRowLimit() {
+    return parseInt(this.rowLimitInput.value) || 10000000;
+  }
+
+  /**
+   * Получить объект условий
+   */
+  getConditions() {
+    return this.conditions;
+  }
+
+  /**
+   * Обработчик нажатия на кнопку "Начать валидацию"
+   */
+  async handleValidate() {
+    this.setLoading(true);
+    this.hideError();
+
+    // Показываем скелетоны в модуле результатов
+    if (this.onValidateStart) {
+      this.onValidateStart();
+    }
+
+    if (this.validateCallback) {
+      this.validateCallback(); // App сам выполнит запрос и управление
+    } else {
+      console.error('Validate callback not set in TableConfigModule');
+      this.setLoading(false);
+    }
+  }
+
+  /**
+   * Сбросить состояние (условия, ошибки) без скрытия модуля
+   */
+  resetState() {
+    this.conditions = {};
+    this.rowLimitInput.value = '10000000';
+    this.hideError();
+    // Таблица будет перерисована при следующем setTable
+  }
+
+  /**
+   * Полный сброс и скрытие модуля
+   */
+  reset() {
+    this.resetState();
+    this.hide();
+  }
+
+  // ------------------- UI методы ---------------------
+  show() {
+    this.module.hidden = false;
+    this.module.classList.add('active');
+  }
+
+  hide() {
+    this.module.hidden = true;
+    this.module.classList.remove('active');
+  }
+
+  collapse() {
+    this.toggleBtn.setAttribute('aria-expanded', 'false');
+    this.configContent.hidden = true;
   }
 
   toggleConfig() {
@@ -67,8 +158,30 @@ export class TableConfigModule {
     this.configContent.hidden = isExpanded;
   }
 
+  showError(message) {
+    this.errorEl.textContent = message;
+    this.errorEl.hidden = false;
+  }
+
+  hideError() {
+    this.errorEl.hidden = true;
+  }
+
+  setLoading(loading) {
+    this.validateBtn.disabled = loading;
+    this.rowLimitInput.disabled = loading;
+    this.spinner.hidden = !loading;
+
+    const interactiveSelectors = '.condition-select, .btn-edit, .btn-delete';
+    this.tableBody.querySelectorAll(interactiveSelectors).forEach(el => {
+      if (el instanceof HTMLButtonElement || el instanceof HTMLSelectElement) {
+        el.disabled = loading;
+      }
+    });
+  }
+
+  // ------------------- Рендеринг таблицы ---------------------
   renderTable() {
-    // Use DocumentFragment for performance with many rows
     const fragment = document.createDocumentFragment();
 
     this.columns.forEach((column, index) => {
@@ -79,8 +192,6 @@ export class TableConfigModule {
 
     this.tableBody.innerHTML = '';
     this.tableBody.appendChild(fragment);
-
-    // Attach event listeners
     this.attachRowListeners();
   }
 
@@ -98,7 +209,7 @@ export class TableConfigModule {
       <td><strong>${this.escapeHtml(column.name)}</strong></td>
       <td><code>${this.escapeHtml(column.type)}</code></td>
       <td>
-        ${description.length > 50 
+        ${description.length > 50
           ? `<span class="tooltip">
               <span class="truncated-text" tabindex="0">${this.escapeHtml(truncatedDesc)}</span>
               <span class="tooltip-text">${this.escapeHtml(description)}</span>
@@ -128,7 +239,7 @@ export class TableConfigModule {
   }
 
   attachRowListeners() {
-    // Condition select change
+    // Обработчик выбора нового условия
     this.tableBody.querySelectorAll('.condition-select').forEach(select => {
       select.addEventListener('change', async (e) => {
         const type = e.target.value;
@@ -137,7 +248,12 @@ export class TableConfigModule {
         if (!type) return;
 
         const column = this.columns.find(c => c.name === columnName);
-        const columnType = this.getColumnType(column.type);
+        if (!column) {
+          console.warn(`Column ${columnName} not found`);
+          e.target.value = '';
+          return;
+        }
+
         const optionLabel = e.target.options[e.target.selectedIndex].text;
 
         try {
@@ -151,29 +267,31 @@ export class TableConfigModule {
             this.addCondition(columnName, result);
             this.renderTable();
           }
-          // Reset select to "Нет"
-          e.target.value = '';
         } catch (err) {
           console.error('Modal error:', err);
-          e.target.value = '';
+        } finally {
+          e.target.value = ''; // сброс на "Нет"
         }
       });
     });
 
-    // Edit/Delete buttons
+    // Редактирование условия
     this.tableBody.querySelectorAll('.btn-edit').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const columnName = e.currentTarget.dataset.column;
         const idx = parseInt(e.currentTarget.dataset.idx);
-        const column = this.columns.find(c => c.name === columnName);
         const condition = this.conditions[columnName]?.[idx];
 
-        if (!condition) return;
+        if (!condition) {
+          console.warn(`Condition not found for ${columnName}[${idx}]`);
+          return;
+        }
 
-        const columnType = this.getColumnType(column.type);
-        const conditionDef = Object.values(CONDITION_OPTIONS)
-          .flat()
-          .find(opt => opt.value === condition.type);
+        const column = this.columns.find(c => c.name === columnName);
+        if (!column) {
+          console.warn(`Column ${columnName} not found during edit`);
+          return;
+        }
 
         try {
           const result = await openConditionModal({
@@ -193,6 +311,7 @@ export class TableConfigModule {
       });
     });
 
+    // Удаление условия
     this.tableBody.querySelectorAll('.btn-delete').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const columnName = e.currentTarget.dataset.column;
@@ -204,6 +323,8 @@ export class TableConfigModule {
             delete this.conditions[columnName];
           }
           this.renderTable();
+        } else {
+          console.warn(`No conditions for ${columnName} on delete`);
         }
       });
     });
@@ -221,7 +342,7 @@ export class TableConfigModule {
     if (COLUMN_TYPES.numeric.includes(type)) return 'numeric';
     if (COLUMN_TYPES.string.includes(type)) return 'string';
     if (COLUMN_TYPES.date.includes(type)) return 'date';
-    return 'string'; // default
+    return 'string';
   }
 
   escapeHtml(str) {
@@ -229,85 +350,4 @@ export class TableConfigModule {
     div.textContent = str;
     return div.innerHTML;
   }
-
-  async handleValidate() {
-    const rowLimit = parseInt(this.rowLimitInput.value) || 10000000;
-
-    this.setLoading(true);
-    this.hideError();
-
-    // Вызываем колбэк для показа скелетонов
-    if (this.onValidateStart) {
-      this.onValidateStart();
-    }
-
-    const payload = {
-      tableName: this.tableName,
-      rowLimit,
-      columnConditions: this.conditions,
-    };
-
-    try {
-      const data = await apiPost('/api/validate', payload);
-      this.onValidate(data);
-    } catch (error) {
-      console.error('Validation error:', error);
-      const message = error?.message || 'Ошибка при запуске валидации';
-      this.showError(message);
-    } finally {
-      this.setLoading(false);
-    }
-  }
-
-  setLoading(loading) {
-    this.validateBtn.disabled = loading;
-    this.rowLimitInput.disabled = loading;
-    this.spinner.hidden = !loading;
-
-    // Disable condition selects during validation
-    this.tableBody.querySelectorAll('.condition-select, .btn-edit, .btn-delete')
-      .forEach(el => el.disabled = loading);
-  }
-
-  showError(message) {
-    this.errorEl.textContent = message;
-    this.errorEl.hidden = false;
-  }
-
-  hideError() {
-    this.errorEl.hidden = true;
-  }
-
-  collapse() {
-    this.toggleBtn.setAttribute('aria-expanded', 'false');
-    this.configContent.hidden = true;
-  }
-
-  show() {
-    this.module.hidden = false;
-    this.module.classList.add('active');
-  }
-
-  hide() {
-    this.module.hidden = true;
-    this.module.classList.remove('active');
-  }
-
-  reset() {
-    // Очищаем только данные и состояние, без перерисовки таблицы
-    this.conditions = {};
-    this.rowLimitInput.value = '10000000';
-    this.hideError();
-    this.validateBtn.disabled = false;
-    this.rowLimitInput.disabled = false;
-    this.spinner.hidden = true;
-
-    // Сбрасываем состояние сворачивания (для следующего использования)
-    this.toggleBtn.setAttribute('aria-expanded', 'true');
-    this.configContent.hidden = false;
-
-    // Очищаем визуальные эффекты
-    this.module.style.opacity = '';
-    this.module.style.pointerEvents = '';
-}
 }

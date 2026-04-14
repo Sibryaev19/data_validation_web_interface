@@ -12,7 +12,7 @@
 <body>
   <header class="app-header">
     <div class="container header-content">
-      <h1 class="app-title">🔍 Валидатор данных</h1>
+      <h1 class="app-title">🔍 Проверка качества данных</h1>
       <button id="resetBtn" class="btn btn-secondary" hidden>Новая проверка</button>
     </div>
   </header>
@@ -44,7 +44,7 @@
     <section id="configModule" class="module" aria-labelledby="configTitle" hidden>
       <h2 id="configTitle" class="module-title">
         <button id="toggleConfigBtn" class="toggle-btn" aria-expanded="true">
-          ⚙️ Настройки колонок
+          ⚙️ Пользовательские проверки
           <span class="toggle-icon">▼</span>
         </button>
       </h2>
@@ -68,10 +68,10 @@
 
         <div class="validation-controls">
           <label for="rowLimitInput">
-            Проверяемых строк:
+            Число проверяемых строк в выборке:
             <input type="number" id="rowLimitInput" class="input-field input-small" value="10000000" min="1" max="100000000" />
           </label>
-          <button id="validateBtn" class="btn btn-primary">Начать валидацию</button>
+          <button id="validateBtn" class="btn btn-primary">Начать проверку</button>
           <div id="validateSpinner" class="spinner" hidden></div>
           <div id="validateError" class="error-message" role="alert" hidden></div>
         </div>
@@ -80,15 +80,15 @@
 
     <!-- Модуль 3: Статистика -->
     <section id="resultsModule" class="module" aria-labelledby="resultsTitle" hidden>
-      <h2 id="resultsTitle" class="module-title">📊 Статистика валидации</h2>
+      <h2 id="resultsTitle" class="module-title">📊 Результаты проверки</h2>
 
       <div class="stats-card">
-        <h3>Метаданные таблицы</h3>
+        <h3>Статистика по метаданным</h3>
         <div id="metadataTableContainer"></div>
       </div>
 
       <div class="stats-card">
-        <h3>Статистика по колонкам</h3>
+        <h3>Статистика по выборке</h3>
         <div id="columnStatsTableContainer"></div>
       </div>
     </section>
