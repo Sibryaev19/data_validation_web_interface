@@ -19,13 +19,13 @@ let lastFocusedElement = null;
  * @param {string} options.columnName - Name of the column being configured
  * @returns {Promise<Object|null>} User input or null if cancelled
  */
-export function openConditionModal({ title, type, initialValues = null, columnName }) {
+export function openConditionModal({ title, type, groupId, initialValues = null, columnName }) {
   return new Promise((resolve) => {
     modalResolve = resolve;
     lastFocusedElement = document.activeElement;
 
     modalTitle.textContent = title;
-    modalBody.innerHTML = generateFormHTML(type, initialValues, columnName);
+    modalBody.innerHTML = generateFormHTML(type, groupId, initialValues, columnName);
     modal.classList.add('is-open');
     modal.removeAttribute('hidden');
 
@@ -49,7 +49,7 @@ export function openConditionModal({ title, type, initialValues = null, columnNa
 
     modalSaveBtn.onclick = () => {
       const formData = collectFormData(type);
-      if (validateFormData(type, formData)) {
+      if (validateFormData(type, groupId, formData)) {
         closeModal(formData);
       }
     };
@@ -117,8 +117,25 @@ function handleKeyDown(e) {
 /**
  * Generate HTML form based on condition type
  */
-function generateFormHTML(type, values, columnName) {
+function generateFormHTML(type, groupId, values, columnName) {
   const v = values || {};
+
+  // Вспомогательные функции для полей ввода
+  const numberInput = (name, value, step = 'any', required = true) => `
+    <input type="number" id="${name}" name="${name}" value="${value ?? ''}" step="${step}" ${required ? 'required' : ''} />
+  `;
+
+  const dateInput = (name, value) => `
+    <input type="date" id="${name}" name="${name}" value="${value ?? ''}" />
+  `;
+
+  const textInput = (name, value, placeholder = '') => `
+    <input type="text" id="${name}" name="${name}" value="${value ?? ''}" placeholder="${placeholder}" />
+  `;
+
+  const textareaInput = (name, value, placeholder, rows = 3) => `
+    <textarea id="${name}" name="${name}" rows="${rows}" placeholder="${placeholder}">${value ?? ''}</textarea>
+  `;
 
   switch (type) {
     case 'range':
@@ -127,32 +144,88 @@ function generateFormHTML(type, values, columnName) {
           <div class="form-row">
             <div>
               <label for="minValue">От</label>
-              <input type="number" id="minValue" name="min" value="${v.min ?? ''}" step="any" required />
+              ${numberInput('min', v.min)}
             </div>
             <div>
               <label for="maxValue">До</label>
-              <input type="number" id="maxValue" name="max" value="${v.max ?? ''}" step="any" required />
+              ${numberInput('max', v.max)}
             </div>
           </div>
         </form>
       `;
 
     case 'greater':
-      return `
-        <form class="modal-form" onsubmit="return false">
-          <div>
-            <label for="threshold">Значение больше чем</label>
-            <input type="number" id="threshold" name="value" value="${v.value ?? ''}" step="any" required />
-          </div>
-        </form>
-      `;
-
     case 'less':
       return `
         <form class="modal-form" onsubmit="return false">
           <div>
-            <label for="threshold">Значение меньше чем</label>
-            <input type="number" id="threshold" name="value" value="${v.value ?? ''}" step="any" required />
+            <label for="threshold">${type === 'greater' ? 'Больше чем' : 'Меньше чем'}</label>
+            ${groupId === 1 ? numberInput('value', v.value) : dateInput('value', v.value)}
+          </div>
+        </form>
+      `;
+
+    case 'equal':
+      if (groupId === 1) {
+        return `
+          <form class="modal-form" onsubmit="return false">
+            <div>
+              <label for="value">Значение</label>
+              ${numberInput('value', v.value)}
+            </div>
+          </form>
+        `;
+      } else if (groupId === 3) {
+        return `
+          <form class="modal-form" onsubmit="return false">
+            <div>
+              <label for="value">Дата</label>
+              ${dateInput('value', v.value)}
+            </div>
+          </form>
+        `;
+      } else { // текст
+        return `
+          <form class="modal-form" onsubmit="return false">
+            <div>
+              <label for="value">Точное значение</label>
+              ${textInput('value', v.value)}
+            </div>
+          </form>
+        `;
+      }
+
+    case 'in':
+      const placeholder = groupId === 1 ? 'Введите числа через запятую или каждое с новой строки' :
+                         groupId === 3 ? 'Введите даты в формате ГГГГ-ММ-ДД через запятую или каждую с новой строки' :
+                         'Введите значения через запятую или каждое с новой строки';
+      const valuesStr = Array.isArray(v.values) ? v.values.join('\n') : (v.values || '');
+      return `
+        <form class="modal-form" onsubmit="return false">
+          <div>
+            <label for="values">Список значений</label>
+            ${textareaInput('values', valuesStr, placeholder)}
+            <small class="form-hint">Каждое значение с новой строки или через запятую</small>
+          </div>
+        </form>
+      `;
+
+    case 'length_greater':
+      return `
+        <form class="modal-form" onsubmit="return false">
+          <div>
+            <label for="minLength">Минимальная длина</label>
+            ${numberInput('min', v.min, '1', true)}
+          </div>
+        </form>
+      `;
+
+    case 'length_less':
+      return `
+        <form class="modal-form" onsubmit="return false">
+          <div>
+            <label for="maxLength">Максимальная длина</label>
+            ${numberInput('max', v.max, '1', true)}
           </div>
         </form>
       `;
@@ -163,12 +236,27 @@ function generateFormHTML(type, values, columnName) {
           <div class="form-row">
             <div>
               <label for="minLength">Мин. длина</label>
-              <input type="number" id="minLength" name="min" value="${v.min ?? ''}" min="0" required />
+              ${numberInput('min', v.min, '1', true)}
             </div>
             <div>
               <label for="maxLength">Макс. длина</label>
-              <input type="number" id="maxLength" name="max" value="${v.max ?? ''}" min="0" required />
+              ${numberInput('max', v.max, '1', true)}
             </div>
+          </div>
+        </form>
+      `;
+
+    case 'like':
+      return `
+        <form class="modal-form" onsubmit="return false">
+          <div>
+            <label for="pattern">Шаблон LIKE</label>
+            ${textInput('pattern', v.pattern, '%пример%')}
+            <small class="form-hint">Используйте % для любого количества символов, _ для одного</small>
+          </div>
+          <div class="checkbox-row">
+            <input type="checkbox" id="ignoreCase" name="ignoreCase" ${v.ignoreCase ? 'checked' : ''} />
+            <label for="ignoreCase">Игнорировать регистр</label>
           </div>
         </form>
       `;
@@ -178,7 +266,7 @@ function generateFormHTML(type, values, columnName) {
         <form class="modal-form" onsubmit="return false">
           <div>
             <label for="pattern">Регулярное выражение</label>
-            <input type="text" id="pattern" name="pattern" value="${v.pattern ?? ''}" placeholder="^[A-Z].*" required />
+            ${textInput('pattern', v.pattern, '^[A-Z].*')}
           </div>
           <div class="checkbox-row">
             <input type="checkbox" id="ignoreCase" name="ignoreCase" ${v.ignoreCase ? 'checked' : ''} />
@@ -193,11 +281,11 @@ function generateFormHTML(type, values, columnName) {
           <div class="form-row">
             <div>
               <label for="dateFrom">С даты</label>
-              <input type="date" id="dateFrom" name="from" value="${v.from ?? ''}" />
+              ${dateInput('from', v.from)}
             </div>
             <div>
               <label for="dateTo">По дату</label>
-              <input type="date" id="dateTo" name="to" value="${v.to ?? ''}" />
+              ${dateInput('to', v.to)}
             </div>
           </div>
         </form>
@@ -220,20 +308,44 @@ function collectFormData(type) {
         max: parseFloat(document.getElementById('maxValue').value),
       };
     case 'greater':
-      return {
-        type: 'greater',
-        value: parseFloat(document.getElementById('threshold').value),
-      };
     case 'less':
+    case 'equal': {
+      const value = document.getElementById('value')?.value;
       return {
-        type: 'less',
-        value: parseFloat(document.getElementById('threshold').value),
+        type,
+        value: type === 'equal' && document.getElementById('value')?.type === 'number' ? parseFloat(value) : value,
+      };
+    }
+    case 'in': {
+      const raw = document.getElementById('values').value;
+      // Разбиваем по запятым и переносам строк
+      const items = raw.split(/[,\n]+/).map(s => s.trim()).filter(s => s !== '');
+      return {
+        type: 'in',
+        values: items,
+      };
+    }
+    case 'length_greater':
+      return {
+        type: 'length_greater',
+        min: parseInt(document.getElementById('min').value, 10),
+      };
+    case 'length_less':
+      return {
+        type: 'length_less',
+        max: parseInt(document.getElementById('max').value, 10),
       };
     case 'length_range':
       return {
         type: 'length_range',
-        min: parseInt(document.getElementById('minLength').value),
-        max: parseInt(document.getElementById('maxLength').value),
+        min: parseInt(document.getElementById('min').value, 10),
+        max: parseInt(document.getElementById('max').value, 10),
+      };
+    case 'like':
+      return {
+        type: 'like',
+        pattern: document.getElementById('pattern').value,
+        ignoreCase: document.getElementById('ignoreCase').checked,
       };
     case 'regex':
       return {
@@ -244,18 +356,15 @@ function collectFormData(type) {
     case 'date_range':
       return {
         type: 'date_range',
-        from: document.getElementById('dateFrom').value || null,
-        to: document.getElementById('dateTo').value || null,
+        from: document.getElementById('from').value || null,
+        to: document.getElementById('to').value || null,
       };
     default:
       return null;
   }
 }
 
-/**
- * Validate form data
- */
-function validateFormData(type, data) {
+function validateFormData(type, groupId, data) {
   if (!data) return false;
 
   switch (type) {
@@ -266,7 +375,39 @@ function validateFormData(type, data) {
         return false;
       }
       break;
+    case 'in':
+      if (!data.values || data.values.length === 0) {
+        alert('Введите хотя бы одно значение');
+        return false;
+      }
+      if (groupId === 1) {
+        for (const val of data.values) {
+          if (isNaN(parseFloat(val))) {
+            alert(`"${val}" не является числом`);
+            return false;
+          }
+        }
+      } else if (groupId === 3) {
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        for (const val of data.values) {
+          if (!dateRegex.test(val)) {
+            alert(`"${val}" не соответствует формату ГГГГ-ММ-ДД`);
+            return false;
+          }
+        }
+      }
+      break;
+    case 'like':
+      if (!data.pattern) {
+        alert('Введите шаблон LIKE');
+        return false;
+      }
+      break;
     case 'regex':
+      if (!data.pattern) {
+        alert('Введите регулярное выражение');
+        return false;
+      }
       try {
         new RegExp(data.pattern, data.ignoreCase ? 'i' : '');
       } catch (e) {
@@ -287,6 +428,7 @@ export function closeConditionModal() {
 /**
  * Format condition for display
  */
+// Обновлённая функция форматирования
 export function formatCondition(condition) {
   switch (condition.type) {
     case 'range':
@@ -295,8 +437,20 @@ export function formatCondition(condition) {
       return `> ${condition.value}`;
     case 'less':
       return `< ${condition.value}`;
+    case 'equal':
+      return `= ${condition.value}`;
+    case 'in':
+      const preview = condition.values.slice(0, 3).join(', ');
+      const suffix = condition.values.length > 3 ? ` … +${condition.values.length - 3}` : '';
+      return `IN (${preview}${suffix})`;
+    case 'length_greater':
+      return `Длина > ${condition.min}`;
+    case 'length_less':
+      return `Длина < ${condition.max}`;
     case 'length_range':
       return `Длина от ${condition.min} до ${condition.max}`;
+    case 'like':
+      return `LIKE '${condition.pattern}'${condition.ignoreCase ? ' (i)' : ''}`;
     case 'regex':
       return `Regex: /${condition.pattern}/${condition.ignoreCase ? 'i' : ''}`;
     case 'date_range':

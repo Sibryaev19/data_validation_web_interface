@@ -35,7 +35,7 @@ body {
 }
 
 .container {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 0 24px;
 }
@@ -199,7 +199,10 @@ select.input-field {
   margin-bottom: 20px;
   box-shadow: var(--shadow-soft);
   transition: var(--transition);
+  width: 100%;  /* явно указываем */
+  max-width: none;  /* убираем возможные ограничения */
 }
+
 
 .module:not(.active):not([hidden]) {
   opacity: 0.5;
@@ -439,10 +442,19 @@ select.input-field {
   border-radius: 3px;
 }
 
+#resultsModule.module {
+  /* удаляем предыдущие переопределения */
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
 .stats-table {
   width: 100%;
   font-size: 0.9rem;
-  white-space: normal; /* Было: nowrap */
+  white-space: nowrap;   /* было normal, возвращаем nowrap */
   table-layout: auto;
 }
 
@@ -461,6 +473,12 @@ select.input-field {
 
 .stats-table td:first-child {
   font-weight: 500;
+}
+
+/* Для ячеек с многострочными проверками разрешаем перенос */
+.stats-table td:has(.custom-check),
+.stats-table td:has(.special-check) {
+  white-space: normal;
 }
 
 /* ===== GigaChat Tips ===== */
@@ -672,6 +690,30 @@ select.input-field {
   width: auto;
 }
 
+/* Внутри .modal-form */
+.modal-form textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family);
+  font-size: 0.95rem;
+  resize: vertical;
+}
+
+.modal-form textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.form-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
 /* ===== Spinner ===== */
 .spinner {
   width: 24px;
@@ -841,4 +883,8 @@ select.input-field {
 .stats-table td:has(.custom-check),
 .stats-table td:has(.special-check) {
   vertical-align: top;
+}
+
+#generalStatsTableContainer {
+  margin-bottom: 24px;
 }

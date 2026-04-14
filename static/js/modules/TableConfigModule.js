@@ -7,20 +7,34 @@ import { apiPost } from '../utils/api.js';
 import { openConditionModal, formatCondition } from '../utils/modal.js';
 
 const CONDITION_OPTIONS = {
-  numeric: [
+  1: [ // Числа
     { value: '', label: 'Нет' },
-    { value: 'range', label: 'Значение в промежутке' },
     { value: 'greater', label: 'Больше чем' },
     { value: 'less', label: 'Меньше чем' },
+    { value: 'range', label: 'Значение в промежутке' },
+    { value: 'equal', label: 'Равно значению' },
+    { value: 'in', label: 'В списке значений' },
   ],
-  string: [
+  2: [ // Текст
     { value: '', label: 'Нет' },
+    { value: 'length_greater', label: 'Длина больше' },
+    { value: 'length_less', label: 'Длина меньше' },
     { value: 'length_range', label: 'Длина в диапазоне' },
-    { value: 'regex', label: 'Соответствует регулярному выражению' },
+    { value: 'like', label: 'LIKE (по шаблону)' },
+    { value: 'regex', label: 'Регулярное выражение' },
+    { value: 'equal', label: 'Точное совпадение' },
+    { value: 'in', label: 'В списке значений' },
   ],
-  date: [
+  3: [ // Даты
     { value: '', label: 'Нет' },
-    { value: 'date_range', label: 'В диапазоне дат' },
+    { value: 'greater', label: 'Позже чем' },
+    { value: 'less', label: 'Раньше чем' },
+    { value: 'range', label: 'В диапазоне дат' },
+    { value: 'equal', label: 'Равно дате' },
+    { value: 'in', label: 'В списке дат' },
+  ],
+  4: [ // Остальные типы
+    { value: '', label: 'Нет' },
   ],
 };
 
@@ -202,8 +216,8 @@ export class TableConfigModule {
       ? description.slice(0, 50) + '…'
       : description;
 
-    const columnType = this.getColumnType(column.type);
-    const options = CONDITION_OPTIONS[columnType] || CONDITION_OPTIONS.string;
+    const groupId = this.getTypeGroupId(column);
+    const options = CONDITION_OPTIONS[groupId] || CONDITION_OPTIONS[4];
 
     return `
       <td><strong>${this.escapeHtml(column.name)}</strong></td>
@@ -257,10 +271,13 @@ export class TableConfigModule {
         const optionLabel = e.target.options[e.target.selectedIndex].text;
 
         try {
+          const groupId = this.getTypeGroupId(column);
           const result = await openConditionModal({
             title: `${optionLabel} — ${columnName}`,
             type,
+            groupId,
             columnName,
+            initialValues: null
           });
 
           if (result) {
@@ -294,9 +311,11 @@ export class TableConfigModule {
         }
 
         try {
+          const groupId = this.getTypeGroupId(column);
           const result = await openConditionModal({
             title: `Редактировать — ${columnName}`,
             type: condition.type,
+            groupId,
             initialValues: condition,
             columnName,
           });
@@ -337,12 +356,17 @@ export class TableConfigModule {
     this.conditions[columnName].push(condition);
   }
 
-  getColumnType(dbType) {
-    const type = dbType.toLowerCase();
-    if (COLUMN_TYPES.numeric.includes(type)) return 'numeric';
-    if (COLUMN_TYPES.string.includes(type)) return 'string';
-    if (COLUMN_TYPES.date.includes(type)) return 'date';
-    return 'string';
+  getTypeGroupId(column) {
+    // Если есть type_group_id, используем его
+    if (column.type_group_id !== undefined) {
+      return column.type_group_id;
+    }
+    // Fallback по имени типа (старая логика)
+    const type = column.type.toLowerCase();
+    if (COLUMN_TYPES.numeric.includes(type)) return 1;
+    if (COLUMN_TYPES.string.includes(type)) return 2;
+    if (COLUMN_TYPES.date.includes(type)) return 3;
+    return 4;
   }
 
   escapeHtml(str) {

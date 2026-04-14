@@ -21,6 +21,7 @@ export class ValidationResultsModule {
   constructor() {
     this.module = document.getElementById('resultsModule');
     this.metadataContainer = document.getElementById('metadataTableContainer');
+    this.generalStatsContainer = document.getElementById('generalStatsTableContainer');
     this.columnStatsContainer = document.getElementById('columnStatsTableContainer');
   }
 
@@ -30,6 +31,7 @@ export class ValidationResultsModule {
    */
   render(data) {
     this.renderMetadata(data.table_metadata_statistics);
+    this.renderSampleGeneralStats(data.sample_general_statistics);
     this.renderColumnStats(data.sample_statistics);
     this.show();
   }
@@ -61,6 +63,36 @@ export class ValidationResultsModule {
     `;
     this.metadataContainer.innerHTML = '';
     this.metadataContainer.appendChild(table);
+  }
+  renderSampleGeneralStats(rows) {
+    if (!rows?.length) {
+      this.generalStatsContainer.innerHTML = '<p>Нет данных</p>';
+      return;
+    }
+
+    const table = document.createElement('table');
+    table.className = 'stats-table';
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th scope="col">Параметр</th>
+          <th scope="col">Описание</th>
+          <th scope="col">Значение</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(([key, desc, value]) => `
+          <tr>
+            <td><strong>${this.escapeHtml(key)}</strong></td>
+            <td>${this.escapeHtml(desc || '—')}</td>
+            <td>${this.formatValue(value || '—')}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    `;
+
+    this.generalStatsContainer.innerHTML = '';
+    this.generalStatsContainer.appendChild(table);
   }
 
   renderColumnStats(stats) {
@@ -110,14 +142,14 @@ export class ValidationResultsModule {
   formatMetricName(name) {
     const names = {
       type: 'Тип данных',
-      null_count: 'Кол-во NULL',
-      unique_count: 'Кол-во уникальных',
-      min: 'Минимальное значение / длина (для String)',
-      max: 'Максимальное значение / длина (для String)',
-      median: 'Среднее значение / длина (для String)',
-      zero: "Кол-во 0 или '' (для String)",
-      type_special: 'Спец. проверки',
-      custom: 'Пользовательские проверки'
+      null_count: 'Кол-во<br>NULL',
+      unique_count: 'Кол-во<br>уникальных',
+      min: 'Минимальное<br>значение / длина<br>(для String)',
+      max: 'Максимальное<br>значение / длина<br>(для String)',
+      median: 'Среднее<br>значение / длина<br>(для String)',
+      zero: "Кол-во<br>0 или ''<br>(для String)",
+      type_special: 'Спец. проверки<br>типов',
+      custom: 'Пользовательские<br>проверки'
     };
     return names[name] || name;
   }
@@ -138,14 +170,21 @@ export class ValidationResultsModule {
     // custom: массив пар [[name, val, description?], ...]
     if (Array.isArray(value)) {
       return value.map(item => {
-        // Может быть [name, val] или [name, val, desc]
         const [name, val, desc] = item;
         const safeName = this.escapeHtml(String(name));
         const safeVal = typeof val === 'number'
           ? val.toLocaleString('ru-RU', { maximumFractionDigits: 4 })
           : this.escapeHtml(String(val ?? '—'));
-        const titleAttr = desc ? ` title="${this.escapeHtml(desc)}"` : '';
-        return `<div class="custom-check"><span class="custom-name"${titleAttr}>${safeName}:</span> <span class="custom-val">${safeVal}</span></div>`;
+
+        return `
+          <div class="custom-check">
+            <span class="tooltip">
+              <span class="custom-name">${safeName}:</span>
+              ${desc ? `<span class="tooltip-text">${this.escapeHtml(desc)}</span>` : ''}
+            </span>
+            <span class="custom-val">${safeVal}</span>
+          </div>
+        `;
       }).join('');
     }
 
@@ -157,8 +196,16 @@ export class ValidationResultsModule {
           ? v.toLocaleString('ru-RU', { maximumFractionDigits: 4 })
           : this.escapeHtml(String(v ?? '—'));
         const description = SPECIAL_DESCRIPTIONS[k] || '';
-        const titleAttr = description ? ` title="${this.escapeHtml(description)}"` : '';
-        return `<div class="special-check"><span class="special-key"${titleAttr}>${safeKey}:</span> <span class="special-val">${safeVal}</span></div>`;
+        // Используем тултип как в TableConfigModule
+        return `
+          <div class="special-check">
+            <span class="tooltip">
+              <span class="special-key">${safeKey}:</span>
+              ${description ? `<span class="tooltip-text">${this.escapeHtml(description)}</span>` : ''}
+            </span>
+            <span class="special-val">${safeVal}</span>
+          </div>
+        `;
       }).join('');
     }
 
@@ -184,6 +231,7 @@ export class ValidationResultsModule {
 
   showSkeletons() {
     this.metadataContainer.innerHTML = this.getMetadataSkeletonHTML();
+    this.generalStatsContainer.innerHTML = this.getMetadataSkeletonHTML();
     this.columnStatsContainer.innerHTML = this.getColumnStatsSkeletonHTML();
     this.show();
   }
@@ -229,6 +277,7 @@ export class ValidationResultsModule {
 
   clear() {
     this.metadataContainer.innerHTML = '';
+    this.generalStatsContainer.innerHTML = '';
     this.columnStatsContainer.innerHTML = '';
     this.hide();
   }

@@ -9,42 +9,50 @@ MOCK_COLUMNS = [
     {
         "name": "user_id",
         "type": "integer",
-        "description": "Уникальный идентификатор пользователя в системе. Primary Key."
+        "description": "Уникальный идентификатор пользователя в системе. Primary Key.",
+        "type_group_id": 1
     },
     {
         "name": "username",
         "type": "varchar",
-        "description": "Логин пользователя. Должен быть уникальным и содержать только латинские буквы."
+        "description": "Логин пользователя. Должен быть уникальным и содержать только латинские буквы.",
+        "type_group_id": 2
     },
     {
         "name": "email",
         "type": "varchar",
-        "description": None  # Проверка отображения "описание отсутствует"
+        "description": None,  # Проверка отображения "описание отсутствует",
+        "type_group_id": 2
     },
     {
         "name": "registration_date",
         "type": "date",
-        "description": "Дата регистрации аккаунта. Не может быть в будущем."
+        "description": "Дата регистрации аккаунта. Не может быть в будущем.",
+        "type_group_id": 3
     },
     {
         "name": "account_balance",
         "type": "decimal",
-        "description": "Текущий баланс счета. Может быть отрицательным при овердрафте, но не меньше -1000."
+        "description": "Текущий баланс счета. Может быть отрицательным при овердрафте, но не меньше -1000.",
+        "type_group_id": 1
     },
     {
         "name": "is_active",
         "type": "boolean",
-        "description": "Флаг активности аккаунта"
+        "description": "Флаг активности аккаунта",
+        "type_group_id": 4
     },
     {
         "name": "last_login_timestamp",
         "type": "timestamp",
-        "description": "Время последнего входа в систему. Используется для анализа активности."
+        "description": "Время последнего входа в систему. Используется для анализа активности.",
+        "type_group_id": 3
     },
     {
         "name": "profile_description",
         "type": "text",
-        "description": "Краткая информация о пользователе, заполняется вручную. Максимум 500 символов."
+        "description": "Краткая информация о пользователе, заполняется вручную. Максимум 500 символов.",
+        "type_group_id": 2
     }
 ]
 
@@ -78,6 +86,12 @@ async def validate(payload: dict):
     await asyncio.sleep(1.5)
 
     table_name = payload.get("tableName", "unknown")
+    print(payload)
+
+    sample_general_statistics = [
+        ['num_rows', 'Число строк в выгрузке', d['num_rows']],
+        ['duplicate_rows', 'Число дубликатов по всем полям', d['duplicate_rows']['count']]
+    ]
 
     # Генерируем фейковую статистику на основе колонок из мока
     sample_statistics = {}
@@ -165,6 +179,7 @@ async def validate(payload: dict):
 
     return {
         "table_metadata_statistics": metadata_stats,
+        "sample_general_statistics": sample_general_statistics,
         "sample_statistics": sample_statistics,
         "gigachat_tips": gigachat_tips
     }
