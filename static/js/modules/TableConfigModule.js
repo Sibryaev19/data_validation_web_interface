@@ -63,7 +63,7 @@ export class TableConfigModule {
 
   toggleConfig() {
     const isExpanded = this.toggleBtn.getAttribute('aria-expanded') === 'true';
-    this.toggleBtn.setAttribute('aria-expanded', !isExpanded);
+    this.toggleBtn.setAttribute('aria-expanded', String(!isExpanded));
     this.configContent.hidden = isExpanded;
   }
 
@@ -292,4 +292,22 @@ export class TableConfigModule {
     this.module.hidden = true;
     this.module.classList.remove('active');
   }
+
+  reset() {
+    // Очищаем только данные и состояние, без перерисовки таблицы
+    this.conditions = {};
+    this.rowLimitInput.value = '10000000';
+    this.hideError();
+    this.validateBtn.disabled = false;
+    this.rowLimitInput.disabled = false;
+    this.spinner.hidden = true;
+
+    // Сбрасываем состояние сворачивания (для следующего использования)
+    this.toggleBtn.setAttribute('aria-expanded', 'true');
+    this.configContent.hidden = false;
+
+    // Очищаем визуальные эффекты
+    this.module.style.opacity = '';
+    this.module.style.pointerEvents = '';
+}
 }

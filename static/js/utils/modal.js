@@ -278,6 +278,12 @@ function validateFormData(type, data) {
   return true;
 }
 
+export function closeConditionModal() {
+    if (modal.classList.contains('is-open') || !modal.hidden) {
+        closeModal(null);
+    }
+}
+
 /**
  * Format condition for display
  */

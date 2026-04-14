@@ -442,7 +442,8 @@ select.input-field {
 .stats-table {
   width: 100%;
   font-size: 0.9rem;
-  white-space: nowrap;
+  white-space: normal; /* Было: nowrap */
+  table-layout: auto;
 }
 
 .stats-table th,
@@ -814,4 +815,30 @@ select.input-field {
 }
 .btn-link:hover {
   color: var(--color-primary-hover);
+}
+
+.custom-check,
+.special-check {
+  padding: 3px 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.custom-check:last-child,
+.special-check:last-child {
+  border-bottom: none;
+}
+
+.custom-name,
+.special-key {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-right: 4px;
+}
+
+/* Выравнивание ячеек с многострочным контентом по верху */
+.stats-table td:has(.custom-check),
+.stats-table td:has(.special-check) {
+  vertical-align: top;
 }

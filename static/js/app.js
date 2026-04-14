@@ -8,6 +8,8 @@ import { TableConfigModule } from './modules/TableConfigModule.js';
 import { ValidationResultsModule } from './modules/ValidationResultsModule.js';
 import { GigaChatTipsModule } from './modules/GigaChatTipsModule.js';
 
+import { closeConditionModal } from './utils/modal.js';
+
 class App {
   constructor() {
     this.resetBtn = document.getElementById('resetBtn');
@@ -46,6 +48,10 @@ class App {
   }
 
   onTableFound(tableInfo, tableName) {
+    if (this.modules.config) {
+      this.modules.config.hide();
+      delete this.modules.config;
+    }
     // Делаем модуль поиска неактивным (заблокированным)
     document.getElementById('searchModule').classList.remove('active');
 
@@ -78,22 +84,20 @@ class App {
   }
 
   reset() {
-    // Очистка модулей
+    closeConditionModal();
+
     this.modules.results?.clear();
     this.modules.tips?.clear();
 
-    // Сброс поиска
-    this.modules.search?.reset();
-    const searchModule = document.getElementById('searchModule');
-    searchModule.classList.add('active');   // возвращаем активный класс
-    searchModule.removeAttribute('hidden'); // на всякий случай
-
-    // Скрываем конфигурацию
     if (this.modules.config) {
+      this.modules.config.reset();
+      // После сброса скрываем модуль (возвращаемся к экрану поиска)
       this.modules.config.hide();
       delete this.modules.config;
     }
 
+    this.modules.search?.reset();
+    document.getElementById('searchModule').classList.add('active');
     this.resetBtn.hidden = true;
     this.modules.search?.focus();
   }

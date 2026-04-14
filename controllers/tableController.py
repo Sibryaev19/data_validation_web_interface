@@ -115,6 +115,7 @@ async def validate(payload: dict):
                 stats["type_special"]["inf_count"] = col_stats["inf_count"]
                 stats["type_special"]["nan_count"] = col_stats["nan_count"]
         elif col_stats.get("default_1970_count", None) is not None:
+            stats["type"] = 'Datetime'
             stats["min"] = col_stats["min_date"]
             stats["max"] = col_stats["max_date"]
             stats["type_special"] = {
@@ -137,12 +138,12 @@ async def validate(payload: dict):
         ["file_count", "Число файлов в таблице", d['file_count']],
         ["dataset_size", "Размер таблицы в ГБ", f"{d['dataset_size'][0]:.3f} {d['dataset_size'][1]}"],
         ["row_count_estimate", "Оценочное кол-во строк", d['dataset_row_count_estimation']],
-        ["small_files", "Флаг маленьких файлов", d['small_files']],
-        ["large_data_not_partitioned", "Флаг необходимости партицирования данных", d['large_data_not_partitioned']],
+        ["small_files", "Флаг маленьких файлов", f"{'Да' if d['small_files'][0] else 'Нет'} ({round(d['small_files'][1], 3)} {d['small_files'][2]})"],
+        ["large_data_not_partitioned", "Флаг необходимости партицирования данных", f"{'Да' if d['large_data_not_partitioned'][0] else 'Нет'} ({round(d['large_data_not_partitioned'][1], 3)} {d['large_data_not_partitioned'][2]})"],
         ["column_problem_flag", "Флаг проблемы с числом колонок", d['column_problem_flag']],
-        ["cols_exist_null_partition", "Атрибуты-партиции с null значением", d['cols_exist_null_partition']],
-        ["empty_partitions", "Пустые партиции", d['empty_partitions']],
-        ["meaningless_partitiions", "Партиции, не несущие полезной информации", d['meaningless_partitiions']]
+        ["cols_exist_null_partition", "Атрибуты-партиции с null значением", ',\n'.join(d['cols_exist_null_partition']) if d['cols_exist_null_partition'] is not None else None],
+        ["empty_partitions", "Число пустых партиций", d['empty_partitions']],
+        ["meaningless_partitiions", "Партиции, не несущие полезной информации", ',\n'.join(d['meaningless_partitiions']) if d['meaningless_partitiions'] is not None else None]
     ]
 
     # Генерируем Markdown советы
@@ -151,7 +152,7 @@ async def validate(payload: dict):
 Проверка выполнена успешно. Вот несколько рекомендаций:
 
 1. **Пропущенные значения**: 
-   - В колонке `email` обнаружено **{sample_statistics['email']['null_percent']}%** NULL значений. Рекомендуется настроить ограничение `NOT NULL`.
+   - В колонке `email` обнаружено **{10000}%** NULL значений. Рекомендуется настроить ограничение `NOT NULL`.
 
 2. **Аномалии**:
    - Поле `account_balance` имеет отрицательные значения. Убедитесь, что это легитимный овердрафт.

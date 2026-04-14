@@ -2,7 +2,6 @@
  * Module 3: Statistics Visualization
  * Renders metadata and column statistics tables
  */
-
 export class ValidationResultsModule {
   constructor() {
     this.module = document.getElementById('resultsModule');
@@ -25,7 +24,6 @@ export class ValidationResultsModule {
       this.metadataContainer.innerHTML = '<p>Нет данных</p>';
       return;
     }
-
     const table = document.createElement('table');
     table.className = 'stats-table';
     table.innerHTML = `
@@ -41,12 +39,11 @@ export class ValidationResultsModule {
           <tr>
             <td><strong>${this.escapeHtml(key)}</strong></td>
             <td>${this.escapeHtml(desc || '—')}</td>
-            <td>${this.formatValue(value)}</td>
+            <td>${this.formatValue(value || '—')}</td>
           </tr>
         `).join('')}
       </tbody>
     `;
-
     this.metadataContainer.innerHTML = '';
     this.metadataContainer.appendChild(table);
   }
@@ -56,14 +53,13 @@ export class ValidationResultsModule {
       this.columnStatsContainer.innerHTML = '<p>Нет данных</p>';
       return;
     }
-
     const columns = Object.keys(stats);
     const allMetrics = [...new Set(
       columns.flatMap(col => Object.keys(stats[col]))
     )];
 
-    // Fixed order for common metrics
-    const metricOrder = ['count', 'null_percent', 'min', 'max', 'avg', 'std', 'unique'];
+    // Фиксированный порядок метрик + новые спец. поля
+    const metricOrder = ['type', 'count', 'null_percent', 'min', 'max', 'avg', 'std', 'unique', 'type_special', 'custom'];
     const orderedMetrics = [
       ...metricOrder.filter(m => allMetrics.includes(m)),
       ...allMetrics.filter(m => !metricOrder.includes(m))
@@ -105,17 +101,49 @@ export class ValidationResultsModule {
       avg: 'Среднее',
       std: 'Стд. откл.',
       unique: 'Уникальных',
+      type: 'Тип данных',
+      type_special: 'Спец. проверки',
+      custom: 'Кастомные проверки'
     };
     return names[name] || name;
   }
 
   formatValue(value) {
     if (value === null || value === undefined) return '—';
+
+    // Числа
     if (typeof value === 'number') {
-      if (Number.isInteger(value)) return value.toLocaleString('ru-RU');
-      return value.toLocaleString('ru-RU', { maximumFractionDigits: 4 });
+      return Number.isInteger(value)
+        ? value.toLocaleString('ru-RU')
+        : value.toLocaleString('ru-RU', { maximumFractionDigits: 4 });
     }
+
+    // Булевы
     if (typeof value === 'boolean') return value ? 'Да' : 'Нет';
+
+    // custom: массив пар [[name, val], ...]
+    if (Array.isArray(value)) {
+      return value.map(([name, val]) => {
+        const safeName = this.escapeHtml(String(name));
+        const safeVal = typeof val === 'number'
+          ? val.toLocaleString('ru-RU', { maximumFractionDigits: 4 })
+          : this.escapeHtml(String(val ?? '—'));
+        return `<div class="custom-check"><span class="custom-name">${safeName}:</span> <span class="custom-val">${safeVal}</span></div>`;
+      }).join('');
+    }
+
+    // type_special: объект { key: val, ... }
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      return Object.entries(value).map(([k, v]) => {
+        const safeKey = this.escapeHtml(String(k));
+        const safeVal = typeof v === 'number'
+          ? v.toLocaleString('ru-RU', { maximumFractionDigits: 4 })
+          : this.escapeHtml(String(v ?? '—'));
+        return `<div class="special-check"><span class="special-key">${safeKey}:</span> <span class="special-val">${safeVal}</span></div>`;
+      }).join('');
+    }
+
+    // Строки и прочее
     return this.escapeHtml(String(value));
   }
 
@@ -141,25 +169,17 @@ export class ValidationResultsModule {
     this.show();
   }
 
-  /**
-   * Генерирует скелетон для таблицы метаданных
-   */
+  // ✅ Исправлен синтаксис: был Markdown, теперь валидный HTML
   getMetadataSkeletonHTML() {
     return `
       <table class="stats-table skeleton-table">
-        <thead>
-          <tr>
-            <th>Параметр</th>
-            <th>Описание</th>
-            <th>Значение</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Параметр</th><th>Описание</th><th>Значение</th></tr></thead>
         <tbody>
           ${Array(5).fill(0).map(() => `
             <tr class="skeleton-row">
-              <td class="skeleton-cell"><div class="skeleton-line" style="width: 120px"></div></td>
-              <td class="skeleton-cell"><div class="skeleton-line" style="width: 180px"></div></td>
-              <td class="skeleton-cell"><div class="skeleton-line" style="width: 80px"></div></td>
+              <td class="skeleton-cell"><div class="skeleton-line"></div></td>
+              <td class="skeleton-cell"><div class="skeleton-line"></div></td>
+              <td class="skeleton-cell"><div class="skeleton-line"></div></td>
             </tr>
           `).join('')}
         </tbody>
@@ -167,28 +187,21 @@ export class ValidationResultsModule {
     `;
   }
 
-  /**
-   * Генерирует скелетон для таблицы статистики по колонкам
-   */
   getColumnStatsSkeletonHTML() {
-    const columnCount = 8; // Примерное количество метрик
+    const columnCount = 6;
     return `
       <table class="stats-table skeleton-table">
         <thead>
           <tr>
             <th>Колонка</th>
-            ${Array(columnCount).fill(0).map((_, i) => `
-              <th><div class="skeleton-line" style="width: 60px"></div></th>
-            `).join('')}
+            ${Array(columnCount).fill(0).map(() => `<th>—</th>`).join('')}
           </tr>
         </thead>
         <tbody>
-          ${Array(6).fill(0).map(() => `
+          ${Array(4).fill(0).map(() => `
             <tr class="skeleton-row">
-              <td class="skeleton-cell"><div class="skeleton-line" style="width: 100px"></div></td>
-              ${Array(columnCount).fill(0).map(() => `
-                <td class="skeleton-cell"><div class="skeleton-line" style="width: 50px"></div></td>
-              `).join('')}
+              <td class="skeleton-cell"><div class="skeleton-line"></div></td>
+              ${Array(columnCount).fill(0).map(() => `<td class="skeleton-cell"><div class="skeleton-line"></div></td>`).join('')}
             </tr>
           `).join('')}
         </tbody>
@@ -196,9 +209,6 @@ export class ValidationResultsModule {
     `;
   }
 
-  /**
-   * Очистить скелетоны и скрыть модуль
-   */
   clear() {
     this.metadataContainer.innerHTML = '';
     this.columnStatsContainer.innerHTML = '';
