@@ -4,18 +4,24 @@ import { ValidationResultsModule } from './modules/ValidationResultsModule.js';
 import { GigaChatTipsModule } from './modules/GigaChatTipsModule.js';
 import { closeConditionModal } from './utils/modal.js';
 import { apiPost } from './utils/api.js';
+import { ProgressModule } from './modules/ProgressModule.js';
 
 class App {
   constructor() {
     this.resetBtn = document.getElementById('resetBtn');
 
-    // Create all modules once
+    // Создаём модули
     this.modules = {
       results: new ValidationResultsModule(),
       tips: new GigaChatTipsModule(),
-      config: new TableConfigModule(() => this.modules.results.showSkeletons()),
+      progress: new ProgressModule(),
     };
-    this.modules.config.setValidateCallback(() => this.onValidate());
+
+    // config получает progress и колбэк завершения
+    this.modules.config = new TableConfigModule(
+      this.modules.progress,
+      (finalData) => this.onValidationComplete(finalData)
+    );
 
     this.modules.search = new SearchModule(
       (data, tableName) => this.handleTableFound(data, tableName),
@@ -23,6 +29,17 @@ class App {
     );
 
     this.init();
+  }
+
+  onValidationComplete(finalData) {
+    // Скрываем прогресс-бар (или оставляем для истории)
+    // this.modules.progress.hide();
+
+    // Отображаем результаты и советы
+    this.modules.results.render(finalData);
+    this.modules.tips.render(finalData.gigachat_tips);
+
+    document.getElementById('resultsModule')?.scrollIntoView({ behavior: 'smooth' });
   }
 
   init() {
@@ -72,6 +89,8 @@ class App {
     closeConditionModal();
     this.modules.results.clear();
     this.modules.tips.clear();
+    this.modules.progress.reset();
+    this.modules.progress.hide();
     this.modules.config.reset();
     this.modules.search.reset();
 

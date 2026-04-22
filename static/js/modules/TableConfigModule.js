@@ -5,6 +5,7 @@
 
 import { apiPost } from '../utils/api.js';
 import { openConditionModal, formatCondition } from '../utils/modal.js';
+import { apiPostStream } from '../utils/api.js';
 
 const CONDITION_OPTIONS = {
   1: [ // Числа
@@ -45,9 +46,9 @@ const COLUMN_TYPES = {
 };
 
 export class TableConfigModule {
-  constructor(onValidateStart) {
-    // Колбэк для показа скелетонов перед стартом валидации
-    this.onValidateStart = onValidateStart;
+  constructor(progressModule, onValidationComplete) {
+    this.progressModule = progressModule;
+    this.onValidationComplete = onValidationComplete; // будет вызван с результатом
     // Колбэк для запуска валидации (будет установлен из App)
     this.validateCallback = null;
 
@@ -119,16 +120,44 @@ export class TableConfigModule {
     this.setLoading(true);
     this.hideError();
 
-    // Показываем скелетоны в модуле результатов
-    if (this.onValidateStart) {
-      this.onValidateStart();
-    }
+    // Сворачиваем секцию настроек (опционально)
+    this.collapse();
 
-    if (this.validateCallback) {
-      this.validateCallback(); // App сам выполнит запрос и управление
-    } else {
-      console.error('Validate callback not set in TableConfigModule');
+    // Показываем и сбрасываем прогресс-бар
+    this.progressModule.reset();
+    this.progressModule.show();
+
+    const payload = {
+      tableName: this.tableName,
+      rowLimit: this.getRowLimit(),
+      columnConditions: this.getConditions(),
+    };
+
+    try {
+      const finalData = await apiPostStream(
+        '/api/validate',
+        payload,
+        (progressEvent) => {
+          // Обработка промежуточных событий прогресса
+          this.progressModule.updateFromEvent(progressEvent);
+        }
+      );
+
+      // Валидация завершена успешно
+      // Передаём финальные данные в основной колбэк
+      if (this.onValidationComplete) {
+        this.onValidationComplete(finalData);
+      }
+    } catch (error) {
+      console.error('Validation failed:', error);
+      this.showError(error.message || 'Ошибка валидации');
+      // Устанавливаем ошибку на текущем этапе (можно попробовать выяснить, на каком)
+      // Например, по последнему событию прогресса, но для простоты ставим ошибку на этапе validation
+      this.progressModule.setStageError('validation', error.message);
+    } finally {
       this.setLoading(false);
+      // Прогресс-бар не скрываем – он останется видимым (можно скрыть после отображения результатов)
+      // или скрыть по желанию
     }
   }
 

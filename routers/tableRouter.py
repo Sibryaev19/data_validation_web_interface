@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Request
+from fastapi.responses import StreamingResponse
 from controllers import tableController
+import json
 
 router = APIRouter(
     prefix=""  # Префикс /api задается при подключении в app.py
@@ -24,8 +26,31 @@ async def get_table_info(request: Request):
 @router.post('/validate')
 async def validate(request: Request):
     """
-    Запускает валидацию.
-    Ожидает JSON: { "tableName": "...", "rowLimit": 10000, "columnConditions": {...} }
+    Запускает валидацию с потоковой передачей прогресса.
+    Возвращает StreamingResponse с JSON-событиями.
     """
     body = await request.json()
-    return await tableController.validate(body)
+
+    # Создаём генератор событий
+    event_generator = tableController.validate_stream(body)
+
+    # Возвращаем поток с правильными заголовками
+    return StreamingResponse(
+        event_generator,
+        media_type="application/x-ndjson",  # или text/plain
+        headers={
+            "X-Accel-Buffering": "no",  # отключаем буферизацию nginx
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+# @router.post('/validate')
+# async def validate(request: Request):
+#     """
+#     Запускает валидацию.
+#     Ожидает JSON: { "tableName": "...", "rowLimit": 10000, "columnConditions": {...} }
+#     """
+#     body = await request.json()
+#     return await tableController.validate(body)
