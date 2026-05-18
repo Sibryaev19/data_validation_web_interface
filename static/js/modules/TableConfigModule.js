@@ -1,8 +1,6 @@
 /**
- * Module 2: Column Configuration (упрощённая версия)
- * Поддерживает переиспользование экземпляра при смене таблицы.
- */
-
+Module 2: Column Configuration
+*/
 import { apiPost } from '../utils/api.js';
 import { openConditionModal, formatCondition } from '../utils/modal.js';
 import { apiPostStream } from '../utils/api.js';
@@ -46,17 +44,13 @@ const COLUMN_TYPES = {
 };
 
 export class TableConfigModule {
-  constructor(progressModule, onValidationComplete) {
-    this.progressModule = progressModule;
-    this.onValidationComplete = onValidationComplete; // будет вызван с результатом
-    // Колбэк для запуска валидации (будет установлен из App)
-    this.validateCallback = null;
-
+  constructor() {
+    this.progressModule = window.app?.modules.progress;
     this.tableName = '';
     this.columns = [];
     this.conditions = {};
+    this.rowLimitValue = '10000000';
 
-    // DOM элементы
     this.module = document.getElementById('configModule');
     this.toggleBtn = document.getElementById('toggleConfigBtn');
     this.configContent = document.getElementById('configContent');
@@ -70,158 +64,67 @@ export class TableConfigModule {
   }
 
   init() {
-    // Переключение сворачивания секции
     this.toggleBtn.addEventListener('click', () => this.toggleConfig());
-
-    // Кнопка валидации
+    this.rowLimitInput.addEventListener('change', (e) => { this.rowLimitValue = e.target.value; });
+    // Клик теперь делегирует запуск в TabManager (очередь, стриминг, статусы)
     this.validateBtn.addEventListener('click', () => this.handleValidate());
   }
 
-  /**
-   * Установить внешний колбэк для выполнения валидации
-   */
-  setValidateCallback(cb) {
-    this.validateCallback = cb;
+  async handleValidate() {
+    if (window.app?.tabManager && window.app.tabManager.activeTabId) {
+      window.app.tabManager.requestValidation(window.app.tabManager.activeTabId);
+    }
   }
 
-  /**
-   * Загрузить новую таблицу (переиспользование экземпляра)
-   */
   setTable(tableName, columns) {
     this.tableName = tableName;
     this.columns = columns;
     this.conditions = {};
-    this.rowLimitInput.value = '10000000';
+    this.rowLimitValue = '10000000';
+    this.rowLimitInput.value = this.rowLimitValue;
     this.hideError();
     this.renderTable();
-    // Разворачиваем секцию настроек (можно сделать настройкой)
     this.toggleBtn.setAttribute('aria-expanded', 'true');
     this.configContent.hidden = false;
   }
 
-  /**
-   * Получить текущий лимит строк
-   */
-  getRowLimit() {
-    return parseInt(this.rowLimitInput.value) || 10000000;
+  restoreState(tableName, columns, conditions, rowLimit) {
+    this.tableName = tableName;
+    this.columns = columns || [];
+    this.conditions = conditions || {};
+    this.rowLimitValue = String(rowLimit || 10000000);
+    this.rowLimitInput.value = this.rowLimitValue;
+    this.hideError();
+    this.renderTable(); // Теперь this.columns заполнен, таблица отрисуется
   }
 
-  /**
-   * Получить объект условий
-   */
-  getConditions() {
-    return this.conditions;
+  getRowLimit() { return parseInt(this.rowLimitInput.value) || 10000000; }
+  getConditions() { return this.conditions; }
+
+  setValidationEnabled(enabled) {
+    this.validateBtn.disabled = !enabled;
+    this.rowLimitInput.disabled = !enabled;
+    this.tableBody.querySelectorAll('.condition-select, .btn-edit, .btn-delete').forEach(el => el.disabled = !enabled);
   }
 
-  /**
-   * Обработчик нажатия на кнопку "Начать валидацию"
-   */
-  async handleValidate() {
+  async runValidationStream(payload, onProgress) {
     this.setLoading(true);
     this.hideError();
-
-    // Сворачиваем секцию настроек (опционально)
-    this.collapse();
-
-    // Показываем и сбрасываем прогресс-бар
-    this.progressModule.reset();
-    this.progressModule.show();
-
-    const payload = {
-      tableName: this.tableName,
-      rowLimit: this.getRowLimit(),
-      columnConditions: this.getConditions(),
-    };
-
+    if (this.progressModule) { this.progressModule.reset(); this.progressModule.show(); }
     try {
-      const finalData = await apiPostStream(
-        '/api/validate',
-        payload,
-        (progressEvent) => {
-          // Обработка промежуточных событий прогресса
-          this.progressModule.updateFromEvent(progressEvent);
-        }
-      );
-
-      // Валидация завершена успешно
-      // Передаём финальные данные в основной колбэк
-      if (this.onValidationComplete) {
-        this.onValidationComplete(finalData);
-      }
+      return await apiPostStream('/api/validate', payload, onProgress);
     } catch (error) {
-      console.error('Validation failed:', error);
       this.showError(error.message || 'Ошибка валидации');
-      // Устанавливаем ошибку на текущем этапе (можно попробовать выяснить, на каком)
-      // Например, по последнему событию прогресса, но для простоты ставим ошибку на этапе validation
-      this.progressModule.setStageError('validation', error.message);
+      if (this.progressModule) this.progressModule.setStageError('validation', error.message);
+      throw error;
     } finally {
       this.setLoading(false);
-      // Прогресс-бар не скрываем – он останется видимым (можно скрыть после отображения результатов)
-      // или скрыть по желанию
     }
   }
 
-  /**
-   * Сбросить состояние (условия, ошибки) без скрытия модуля
-   */
-  resetState() {
-    this.conditions = {};
-    this.rowLimitInput.value = '10000000';
-    this.hideError();
-    // Таблица будет перерисована при следующем setTable
-  }
-
-  /**
-   * Полный сброс и скрытие модуля
-   */
-  reset() {
-    this.resetState();
-    this.hide();
-  }
-
-  // ------------------- UI методы ---------------------
-  show() {
-    this.module.hidden = false;
-    this.module.classList.add('active');
-  }
-
-  hide() {
-    this.module.hidden = true;
-    this.module.classList.remove('active');
-  }
-
-  collapse() {
-    this.toggleBtn.setAttribute('aria-expanded', 'false');
-    this.configContent.hidden = true;
-  }
-
-  toggleConfig() {
-    const isExpanded = this.toggleBtn.getAttribute('aria-expanded') === 'true';
-    this.toggleBtn.setAttribute('aria-expanded', String(!isExpanded));
-    this.configContent.hidden = isExpanded;
-  }
-
-  showError(message) {
-    this.errorEl.textContent = message;
-    this.errorEl.hidden = false;
-  }
-
-  hideError() {
-    this.errorEl.hidden = true;
-  }
-
-  setLoading(loading) {
-    this.validateBtn.disabled = loading;
-    this.rowLimitInput.disabled = loading;
-    this.spinner.hidden = !loading;
-
-    const interactiveSelectors = '.condition-select, .btn-edit, .btn-delete';
-    this.tableBody.querySelectorAll(interactiveSelectors).forEach(el => {
-      if (el instanceof HTMLButtonElement || el instanceof HTMLSelectElement) {
-        el.disabled = loading;
-      }
-    });
-  }
+  // ... (renderTable, attachRowListeners, renderRow, addCondition, getTypeGroupId, escapeHtml остаются БЕЗ ИЗМЕНЕНИЙ) ...
+  // Для экономии места я не дублирую их, они работают как раньше.
+  // Важно: в attachRowListeners() при вызове openConditionModal убедитесь, что используется this.addCondition и this.renderTable.
 
   // ------------------- Рендеринг таблицы ---------------------
   renderTable() {
@@ -402,5 +305,21 @@ export class TableConfigModule {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  show() { this.module.hidden = false; this.module.classList.add('active'); }
+  hide() { this.module.hidden = true; this.module.classList.remove('active'); }
+  collapse() { this.toggleBtn.setAttribute('aria-expanded', 'false'); this.configContent.hidden = true; }
+  toggleConfig() {
+    const isExpanded = this.toggleBtn.getAttribute('aria-expanded') === 'true';
+    this.toggleBtn.setAttribute('aria-expanded', String(!isExpanded));
+    this.configContent.hidden = isExpanded;
+  }
+  showError(m) { this.errorEl.textContent = m; this.errorEl.hidden = false; }
+  hideError() { this.errorEl.hidden = true; }
+  setLoading(l) {
+    this.validateBtn.disabled = l;
+    this.rowLimitInput.disabled = l;
+    this.spinner.hidden = !l;
   }
 }

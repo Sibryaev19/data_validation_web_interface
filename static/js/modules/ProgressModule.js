@@ -8,47 +8,41 @@ export class ProgressModule {
       { id: 'validation', name: 'Валидация данных' },
       { id: 'gigachat', name: 'Рекомендации GigaChat' }
     ];
+    this.state = this.initState();
+  }
 
-    this.state = this.stages.map(stage => ({
-      ...stage,
-      status: 'pending',
-      elapsed: null,
-      error: null,
-      startTime: null,
-      timerInterval: null
+  initState() {
+    return this.stages.map(s => ({ ...s, status: 'pending', elapsed: null, error: null, startTime: null, timerInterval: null }));
+  }
+
+  show() { this.render(); this.module.hidden = false; this.module.classList.add('active'); }
+  hide() { this.module.hidden = true; this.module.classList.remove('active'); this.stopAllTimers(); }
+
+  reset() { this.stopAllTimers(); this.state = this.initState(); this.render(); }
+
+  stopAllTimers() { this.state.forEach(s => { if (s.timerInterval) clearInterval(s.timerInterval); s.timerInterval = null; }); }
+
+  // Сохранение/восстановление
+  getState() {
+    return this.state.map(s => ({
+      id: s.id, status: s.status, elapsed: s.elapsed, error: s.error
     }));
   }
 
-  show() {
-    this.render();
-    this.module.hidden = false;
-    this.module.classList.add('active');
-  }
-
-  hide() {
-    this.module.hidden = true;
-    this.module.classList.remove('active');
+  restoreState(savedState) {
+    if (!savedState || savedState.length === 0) { this.reset(); return; }
     this.stopAllTimers();
-  }
+    this.state = savedState.map(s => ({ ...this.stages.find(st => st.id === s.id), ...s, startTime: null, timerInterval: null }));
 
-  reset() {
-    this.stopAllTimers();
-    this.state.forEach(s => {
-      s.status = 'pending';
-      s.elapsed = null;
-      s.error = null;
-      s.startTime = null;
-    });
-    this.render();
-  }
-
-  stopAllTimers() {
-    this.state.forEach(s => {
-      if (s.timerInterval) {
-        clearInterval(s.timerInterval);
-        s.timerInterval = null;
+    // Если статус running, перезапускаем таймер
+    this.state.forEach(stage => {
+      if (stage.status === 'running') {
+        stage.startTime = Date.now() - (stage.elapsed || 0) * 1000;
+        this.startTimer(stage);
       }
     });
+    this.render();
+    if (this.module.classList.contains('active')) this.show();
   }
 
   updateFromEvent(eventData) {
@@ -56,31 +50,22 @@ export class ProgressModule {
     const stageObj = this.state.find(s => s.id === stage);
     if (!stageObj) return;
 
-    const previousStatus = stageObj.status;
-    stageObj.status = status;
-    if (elapsed !== undefined) stageObj.elapsed = elapsed;
-    if (error) stageObj.error = error;
+    const prevStatus = stageObj.status;
+    Object.assign(stageObj, { status, elapsed: elapsed ?? stageObj.elapsed, error: error ?? stageObj.error });
 
-    if (status === 'running' && previousStatus !== 'running') {
+    if (status === 'running' && prevStatus !== 'running') {
       stageObj.startTime = Date.now();
       this.startTimer(stageObj);
     } else if (status !== 'running' && stageObj.timerInterval) {
       clearInterval(stageObj.timerInterval);
       stageObj.timerInterval = null;
-      if (status === 'completed' && stageObj.elapsed === null && stageObj.startTime) {
-        stageObj.elapsed = (Date.now() - stageObj.startTime) / 1000;
-      }
     }
-
     if (status === 'error' && stageObj.timerInterval) {
       clearInterval(stageObj.timerInterval);
       stageObj.timerInterval = null;
     }
-
-    // Обновляем только затронутую строку
     this.renderRow(stageObj);
   }
-
   startTimer(stageObj) {
     stageObj.timerInterval = setInterval(() => {
       if (stageObj.status === 'running' && stageObj.startTime) {
