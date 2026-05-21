@@ -61,17 +61,27 @@ export class TableConfigModule {
       // 👇 НОВОЕ
       this.computeModeSelect = document.getElementById('computeModeSelect');
       this.skipGigaChatCheckbox = document.getElementById('skipGigaChatCheckbox');
+      this.tableTitleEl = null;
 
       this.init();
   }
 
+  // В init() добавьте создание элемента ПЕРЕД существующими обработчиками:
   init() {
-      this.toggleBtn.addEventListener('click', () => this.toggleConfig());
-      this.rowLimitInput.addEventListener('change', (e) => { this.rowLimitValue = e.target.value; });
-      this.validateBtn.addEventListener('click', () => this.handleValidate());
-      // 👇 НОВОЕ
-      this.computeModeSelect.addEventListener('change', (e) => this.handleComputeModeChange(e.target.value));
-      this.handleComputeModeChange(this.computeModeSelect.value); // инициализация состояния
+    // Создаём заголовок, если его ещё нет
+    if (!this.tableTitleEl) {
+      this.tableTitleEl = document.createElement('h3');
+      this.tableTitleEl.className = 'config-table-title';
+      // Вставляем строго перед заголовком модуля
+      const moduleTitle = this.toggleBtn.closest('.module-title');
+      this.module.insertBefore(this.tableTitleEl, moduleTitle);
+    }
+
+    this.toggleBtn.addEventListener('click', () => this.toggleConfig());
+    this.rowLimitInput.addEventListener('change', (e) => { this.rowLimitValue = e.target.value; });
+    this.validateBtn.addEventListener('click', () => this.handleValidate());
+    this.computeModeSelect.addEventListener('change', (e) => this.handleComputeModeChange(e.target.value));
+    this.handleComputeModeChange(this.computeModeSelect.value);
   }
 
   async handleValidate() {
@@ -90,6 +100,8 @@ export class TableConfigModule {
     this.renderTable();
     this.toggleBtn.setAttribute('aria-expanded', 'true');
     this.configContent.hidden = false;
+
+    if (this.tableTitleEl) this.tableTitleEl.textContent = tableName; // 👈 НОВОЕ
   }
 
   restoreState(tableName, columns, conditions, rowLimit, computeMode = 'all', skipGigaChat = false) {
@@ -103,6 +115,8 @@ export class TableConfigModule {
       this.handleComputeModeChange(computeMode);
       this.hideError();
       this.renderTable();
+
+      if (this.tableTitleEl) this.tableTitleEl.textContent = tableName; // 👈 НОВОЕ
   }
 
   getRowLimit() { return parseInt(this.rowLimitInput.value) || 10000000; }
@@ -328,8 +342,16 @@ export class TableConfigModule {
     return div.innerHTML;
   }
 
-  show() { this.module.hidden = false; this.module.classList.add('active'); }
-  hide() { this.module.hidden = true; this.module.classList.remove('active'); }
+  show() {
+    this.module.hidden = false;
+    this.module.classList.add('active');
+    if (this.tableTitleEl) this.tableTitleEl.hidden = false;
+  }
+  hide() {
+    this.module.hidden = true;
+    this.module.classList.remove('active');
+    if (this.tableTitleEl) this.tableTitleEl.hidden = true;
+  }
   collapse() { this.toggleBtn.setAttribute('aria-expanded', 'false'); this.configContent.hidden = true; }
   toggleConfig() {
     const isExpanded = this.toggleBtn.getAttribute('aria-expanded') === 'true';

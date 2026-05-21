@@ -991,11 +991,27 @@ select.input-field {
 
 .tab-close {
   flex-shrink: 0;
-  background: transparent; border: none;
-  color: inherit; font-size: 1.2rem; line-height: 1;
-  cursor: pointer; opacity: 0.5;
-  padding: 0 2px; margin-left: 2px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.5;
+  padding: 0 2px;
+  margin-left: auto; /* ✅ Было: margin-left: 2px; → Теперь всегда прижат вправо */
   transition: opacity 0.2s, color 0.2s;
   border-radius: 4px;
 }
+
 .tab-close:hover { opacity: 1; color: var(--color-error); background: rgba(0,0,0,0.05); }
+
+.config-table-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--color-text);
+  margin: 0 0 16px;
+  padding: 8px 0;
+  word-break: break-word;
+}
