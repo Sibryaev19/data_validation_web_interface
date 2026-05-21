@@ -74,6 +74,18 @@
           </label>
           <button id="validateBtn" class="btn btn-primary">Начать проверку</button>
           <div id="validateSpinner" class="spinner" hidden></div>
+          <span id="validateError" class="error-message" hidden></span>
+          <select id="computeModeSelect" class="input-field" style="min-width: 180px;">
+              <option value="all">Вычисление всего</option>
+              <option value="metadata_from_db">Метаданные из БД</option>
+              <option value="all_from_db">Всё из БД</option>
+          </select>
+
+          <label for="skipGigaChatCheckbox" style="display: flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; white-space: nowrap;">
+              <input type="checkbox" id="skipGigaChatCheckbox">
+              Без рекомендаций GigaChat
+          </label>
+        </div>
       </div>
     </section>
 

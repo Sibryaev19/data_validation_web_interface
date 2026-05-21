@@ -45,29 +45,33 @@ const COLUMN_TYPES = {
 
 export class TableConfigModule {
   constructor() {
-    this.progressModule = window.app?.modules.progress;
-    this.tableName = '';
-    this.columns = [];
-    this.conditions = {};
-    this.rowLimitValue = '10000000';
+      this.progressModule = window.app?.modules.progress;
+      this.tableName = '';
+      this.columns = [];
+      this.conditions = {};
+      this.rowLimitValue = '10000000';
+      this.module = document.getElementById('configModule');
+      this.toggleBtn = document.getElementById('toggleConfigBtn');
+      this.configContent = document.getElementById('configContent');
+      this.tableBody = document.getElementById('columnsTableBody');
+      this.rowLimitInput = document.getElementById('rowLimitInput');
+      this.validateBtn = document.getElementById('validateBtn');
+      this.spinner = document.getElementById('validateSpinner');
+      this.errorEl = document.getElementById('validateError');
+      // 👇 НОВОЕ
+      this.computeModeSelect = document.getElementById('computeModeSelect');
+      this.skipGigaChatCheckbox = document.getElementById('skipGigaChatCheckbox');
 
-    this.module = document.getElementById('configModule');
-    this.toggleBtn = document.getElementById('toggleConfigBtn');
-    this.configContent = document.getElementById('configContent');
-    this.tableBody = document.getElementById('columnsTableBody');
-    this.rowLimitInput = document.getElementById('rowLimitInput');
-    this.validateBtn = document.getElementById('validateBtn');
-    this.spinner = document.getElementById('validateSpinner');
-    this.errorEl = document.getElementById('validateError');
-
-    this.init();
+      this.init();
   }
 
   init() {
-    this.toggleBtn.addEventListener('click', () => this.toggleConfig());
-    this.rowLimitInput.addEventListener('change', (e) => { this.rowLimitValue = e.target.value; });
-    // Клик теперь делегирует запуск в TabManager (очередь, стриминг, статусы)
-    this.validateBtn.addEventListener('click', () => this.handleValidate());
+      this.toggleBtn.addEventListener('click', () => this.toggleConfig());
+      this.rowLimitInput.addEventListener('change', (e) => { this.rowLimitValue = e.target.value; });
+      this.validateBtn.addEventListener('click', () => this.handleValidate());
+      // 👇 НОВОЕ
+      this.computeModeSelect.addEventListener('change', (e) => this.handleComputeModeChange(e.target.value));
+      this.handleComputeModeChange(this.computeModeSelect.value); // инициализация состояния
   }
 
   async handleValidate() {
@@ -88,23 +92,40 @@ export class TableConfigModule {
     this.configContent.hidden = false;
   }
 
-  restoreState(tableName, columns, conditions, rowLimit) {
-    this.tableName = tableName;
-    this.columns = columns || [];
-    this.conditions = conditions || {};
-    this.rowLimitValue = String(rowLimit || 10000000);
-    this.rowLimitInput.value = this.rowLimitValue;
-    this.hideError();
-    this.renderTable(); // Теперь this.columns заполнен, таблица отрисуется
+  restoreState(tableName, columns, conditions, rowLimit, computeMode = 'all', skipGigaChat = false) {
+      this.tableName = tableName;
+      this.columns = columns || [];
+      this.conditions = conditions || {};
+      this.rowLimitValue = String(rowLimit || 10000000);
+      this.rowLimitInput.value = this.rowLimitValue;
+      this.computeModeSelect.value = computeMode;
+      this.skipGigaChatCheckbox.checked = skipGigaChat;
+      this.handleComputeModeChange(computeMode);
+      this.hideError();
+      this.renderTable();
   }
 
   getRowLimit() { return parseInt(this.rowLimitInput.value) || 10000000; }
   getConditions() { return this.conditions; }
 
+  handleComputeModeChange(mode) {
+      const isFromDB = mode === 'all_from_db';
+      this.rowLimitInput.disabled = isFromDB;
+      this.rowLimitInput.style.opacity = isFromDB ? '0.5' : '1';
+  }
+  getComputeMode() { return this.computeModeSelect.value; }
+  getSkipGigaChat() { return this.skipGigaChatCheckbox.checked; }
+
   setValidationEnabled(enabled) {
-    this.validateBtn.disabled = !enabled;
-    this.rowLimitInput.disabled = !enabled;
-    this.tableBody.querySelectorAll('.condition-select, .btn-edit, .btn-delete').forEach(el => el.disabled = !enabled);
+      this.validateBtn.disabled = !enabled;
+      this.computeModeSelect.disabled = !enabled;
+      this.skipGigaChatCheckbox.disabled = !enabled;
+
+      const isFromDB = this.computeModeSelect.value === 'all_from_db';
+      this.rowLimitInput.disabled = !enabled || isFromDB;
+      this.rowLimitInput.style.opacity = (!enabled || isFromDB) ? '0.5' : '1';
+
+      this.tableBody.querySelectorAll('.condition-select, .btn-edit, .btn-delete').forEach(el => el.disabled = !enabled);
   }
 
   async runValidationStream(payload, onProgress) {

@@ -20,10 +20,11 @@ export class TabManager {
   addTab(tableName, columns) {
     const id = `tab_${++this.idCounter}`;
     const context = {
-      id, tableName, columns,
-      conditions: {}, rowLimit: 10000000,
-      resultsData: null, tipsData: null,
-      progressState: [], status: 'idle'
+        id, tableName, columns,
+        conditions: {}, rowLimit: 10000000,
+        computeMode: 'all', skipGigaChat: false, // 👇 ДОБАВЛЕНО
+        resultsData: null, tipsData: null,
+        progressState: [], status: 'idle'
     };
     this.tabs.set(id, context);
     this.renderTabButton(context);
@@ -53,11 +54,18 @@ export class TabManager {
   requestValidation(id) {
     const ctx = this.tabs.get(id);
     if (!ctx) return;
+
+    // 👇 Синхронизируем актуальные значения из UI в контекст перед запуском
+    ctx.conditions = this.app.modules.config.getConditions();
+    ctx.rowLimit = this.app.modules.config.getRowLimit();
+    ctx.computeMode = this.app.modules.config.getComputeMode();
+    ctx.skipGigaChat = this.app.modules.config.getSkipGigaChat();
+
     if (this.isValidationRunning) {
-      if (!this.validationQueue.includes(id)) this.validationQueue.push(id);
-      ctx.status = 'queued';
-      this.updateTabBadge(id);
-      return;
+        if (!this.validationQueue.includes(id)) this.validationQueue.push(id);
+        ctx.status = 'queued';
+        this.updateTabBadge(id);
+        return;
     }
     this.startValidation(id);
   }
@@ -71,9 +79,11 @@ export class TabManager {
     this.updateModuleVisibility();
 
     const payload = {
-      tableName: ctx.tableName,
-      rowLimit: ctx.rowLimit,
-      columnConditions: ctx.conditions
+        tableName: ctx.tableName,
+        rowLimit: ctx.rowLimit,
+        columnConditions: ctx.conditions,
+        computeMode: ctx.computeMode,   // 👇 ДОБАВЛЕНО
+        skipGigaChat: ctx.skipGigaChat  // 👇 ДОБАВЛЕНО
     };
 
     try {
@@ -106,24 +116,28 @@ export class TabManager {
   }
 
   saveActiveTabState() {
-    if (!this.activeTabId || !this.tabs.has(this.activeTabId)) return;
-    const ctx = this.tabs.get(this.activeTabId);
-    ctx.conditions = this.app.modules.config.getConditions();
-    ctx.rowLimit = this.app.modules.config.getRowLimit();
-    if (this.app.modules.progress?.getState) ctx.progressState = this.app.modules.progress.getState();
+      if (!this.activeTabId || !this.tabs.has(this.activeTabId)) return;
+      const ctx = this.tabs.get(this.activeTabId);
+      ctx.conditions = this.app.modules.config.getConditions();
+      ctx.rowLimit = this.app.modules.config.getRowLimit();
+      ctx.computeMode = this.app.modules.config.getComputeMode(); // 👇 ДОБАВЛЕНО
+      ctx.skipGigaChat = this.app.modules.config.getSkipGigaChat(); // 👇 ДОБАВЛЕНО
+      if (this.app.modules.progress?.getState) ctx.progressState = this.app.modules.progress.getState();
   }
 
-  // ✅ ИСПРАВЛЕНО: передаём tableName и columns
-  restoreTabState(id) {
-    const ctx = this.tabs.get(id);
-    if (!ctx) return;
-    this.app.modules.config.restoreState(ctx.tableName, ctx.columns, ctx.conditions, ctx.rowLimit);
-    if (this.app.modules.progress?.restoreState) this.app.modules.progress.restoreState(ctx.progressState);
-    if (ctx.resultsData) this.app.modules.results.render(ctx.resultsData);
-    else this.app.modules.results.clear();
-    if (ctx.tipsData) this.app.modules.tips.render(ctx.tipsData);
-    else this.app.modules.tips.clear();
-  }
+    restoreTabState(id) {
+        const ctx = this.tabs.get(id);
+        if (!ctx) return;
+        this.app.modules.config.restoreState(
+            ctx.tableName, ctx.columns, ctx.conditions, ctx.rowLimit,
+            ctx.computeMode, ctx.skipGigaChat // 👇 ДОБАВЛЕНЫ АРГУМЕНТЫ
+        );
+        if (this.app.modules.progress?.restoreState) this.app.modules.progress.restoreState(ctx.progressState);
+        if (ctx.resultsData) this.app.modules.results.render(ctx.resultsData);
+        else this.app.modules.results.clear();
+        if (ctx.tipsData) this.app.modules.tips.render(ctx.tipsData);
+        else this.app.modules.tips.clear();
+    }
 
   updateTabUI() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
