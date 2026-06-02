@@ -132,6 +132,7 @@ export class TabManager {
             ctx.tableName, ctx.columns, ctx.conditions, ctx.rowLimit,
             ctx.computeMode, ctx.skipGigaChat // 👇 ДОБАВЛЕНЫ АРГУМЕНТЫ
         );
+
         if (this.app.modules.progress?.restoreState) this.app.modules.progress.restoreState(ctx.progressState);
         if (ctx.resultsData) this.app.modules.results.render(ctx.resultsData);
         else this.app.modules.results.clear();

@@ -88,6 +88,7 @@ async def validate_stream(payload: dict) -> AsyncGenerator[str, None]:
     table_name = payload.get("tableName")
     row_limit = payload.get("rowLimit")
     column_conditions = payload.get("columnConditions")
+    print(payload)
 
     # Этап 1: обработка метаданных
     yield json.dumps({
